@@ -1,0 +1,4741 @@
+[
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "(FABRIC)",
+    "target_term": "(布面)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "+PANEL",
+    "target_term": "+横档板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "1st Submission",
+    "target_term": "第1次提交",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "20.5\" width x 32.8 ft. length Horizontal Pattern Repeat 20.5 in",
+    "target_term": "宽20.5英寸×长32.8英尺 水平图案循环20.5英寸",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "2210 Block",
+    "target_term": "2210区画",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "2nd Submission",
+    "target_term": "第2次提交",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "3-bay Etagere",
+    "target_term": "3格多层架",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "3-bay Wall case",
+    "target_term": "3格壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "3rd Submission",
+    "target_term": "第3次提交",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "4-bay Wall case",
+    "target_term": "4格壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "4-bay Wallcase",
+    "target_term": "4格壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "4th Submission",
+    "target_term": "第4次提交",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "5-bay Wall case",
+    "target_term": "5格壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "<MEN'S/WOMEN'S>",
+    "target_term": "<男装/女装>",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "AIO",
+    "target_term": "一体机(AIO)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "AIR CONDITIONING",
+    "target_term": "空调",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "ANTTIQUE OAK",
+    "target_term": "仿古橡木色",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "APPROVED AS NOTED",
+    "target_term": "有条件批准",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "AREA",
+    "target_term": "区域",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Adjastable downlight",
+    "target_term": "可调筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Adjustable downlight",
+    "target_term": "可调筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Aged brass",
+    "target_term": "仿古黄铜色",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Aged bronze",
+    "target_term": "仿古青铜色",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BACK",
+    "target_term": "背面",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BACK COUNTER",
+    "target_term": "后柜台",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BACK VIEW",
+    "target_term": "背视图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BACKWRAP",
+    "target_term": "后围板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BASE",
+    "target_term": "踢脚线",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BGM",
+    "target_term": "背景音乐",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BGM SPEAKER",
+    "target_term": "背景音乐喇叭",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BLACK STONE\nTOP",
+    "target_term": "黑色石材\n台面",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BLACK STONE TOP",
+    "target_term": "黑色石材台面",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BOH",
+    "target_term": "后勤区",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BOX",
+    "target_term": "箱体",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "BY DECO",
+    "target_term": "装饰方提供",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Barge",
+    "target_term": "驳接件",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Benjamin Moore, Color: Super White, Finish: Brushed, Semi-Gloss",
+    "target_term": "本杰明摩尔 超白色 拉丝半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Benjamin Moore, Color: Super White, Finish: Rolled, Eggshell",
+    "target_term": "本杰明摩尔 超白色 滚涂蛋壳光",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Bracket",
+    "target_term": "壁灯支架",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Brass Plating, Aged",
+    "target_term": "仿古黄铜电镀",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Bronze, Aged",
+    "target_term": "仿古青铜色",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CARPET",
+    "target_term": "地毯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CASHWRAP",
+    "target_term": "收银台",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CASING",
+    "target_term": "门套",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CASING/DOOR",
+    "target_term": "门套/门扇",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CCTV",
+    "target_term": "监控摄像头",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CEILING PANEL",
+    "target_term": "天花面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CEILING PIPE",
+    "target_term": "展示用天花吊管",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CEILING PLAN",
+    "target_term": "天花图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CHAIR",
+    "target_term": "椅子",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CHAIR RAIL",
+    "target_term": "腰线",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CHAIR RAIL/PANEL",
+    "target_term": "腰线/墙面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CLEAR GLASS",
+    "target_term": "透明玻璃",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CODE/DOWN LIGHT",
+    "target_term": "编号/筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "COUNTER",
+    "target_term": "前柜台",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CROWN",
+    "target_term": "顶角线",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CROWN/PANEL",
+    "target_term": "顶角线/墙面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "CUT RELAY OUTLET",
+    "target_term": "切断继电器插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Cantilevered System",
+    "target_term": "悬臂系统",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Cantilevered shelf",
+    "target_term": "悬臂式层板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Ceiling Height",
+    "target_term": "天花高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Collateral Frame",
+    "target_term": "宣传品框架",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Component",
+    "target_term": "组件",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DATE",
+    "target_term": "日期",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DECO",
+    "target_term": "装饰方提供",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DECO MIRROR",
+    "target_term": "装饰镜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DNLIGHTING",
+    "target_term": "DN照明",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DOOR",
+    "target_term": "门扇",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DOWN LIGHT",
+    "target_term": "筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DRAWER",
+    "target_term": "抽屉",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DRAWING NO.",
+    "target_term": "图号",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "DURATRAN",
+    "target_term": "灯箱片",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "EDGE  LIT LOGO",
+    "target_term": "侧发光LOGO",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "EDGE  LIT PONY",
+    "target_term": "侧发光小马标识",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "ELEVATION",
+    "target_term": "立面图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "EMERGENCY LIGHTING",
+    "target_term": "应急照明",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "EMERGENCY SPEAKER",
+    "target_term": "紧急广播",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "EVACUATION ROUTE",
+    "target_term": "疏散通道",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "EXISTING SHUTTER",
+    "target_term": "原有卷帘",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Etagere",
+    "target_term": "多层架",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FAX",
+    "target_term": "传真",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FINISH SCHEDULE",
+    "target_term": "饰面表",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FIRE DOOR",
+    "target_term": "防火门",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FIRE-EXTINGUISHER",
+    "target_term": "灭火器",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FLOORING PLAN",
+    "target_term": "地面铺装图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FO_W1219",
+    "target_term": "正面展示杆_宽1219",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FO_W914",
+    "target_term": "正面展示杆_宽914",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FR/VESTIBULE",
+    "target_term": "门厅",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FRONT",
+    "target_term": "正面",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "FRONT VIEW",
+    "target_term": "正视图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Fixture Height",
+    "target_term": "道具高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Foundation downlight",
+    "target_term": "基础筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "GC FIXTURE",
+    "target_term": "总包道具",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "GHP",
+    "target_term": "燃气热泵(GHP)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "GRID 80 Mountings",
+    "target_term": "GRID 80 安装座",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "GRID Spotlight",
+    "target_term": "格栅射灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Glass, Clear, Tempered",
+    "target_term": "透明钢化玻璃",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Granite, Honed Zimbabwe Black",
+    "target_term": "花岗岩 磨光津巴布韦黑",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "HG_W914",
+    "target_term": "挂杆_宽914",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "HIDDEN DOOR",
+    "target_term": "隐藏门",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Hang",
+    "target_term": "挂架",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "IMITATION GOLD LEAF",
+    "target_term": "仿金箔",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "IMITATION GOLD LEAF EDGE  LIT LOGO",
+    "target_term": "仿金箔侧发光LOGO",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "IMITATION GOLD LEAF EDGE  LIT PONY",
+    "target_term": "仿金箔侧发光小马标识",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "INNER FRAME",
+    "target_term": "内框",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "INSET CARPET",
+    "target_term": "嵌入式地毯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "INSPECTION DOOR",
+    "target_term": "检修口",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "IT RACK",
+    "target_term": "IT机柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "JOINT LINE",
+    "target_term": "拼接线",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "KVA",
+    "target_term": "千伏安(KVA)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LAN",
+    "target_term": "局域网(LAN)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LAP TOP",
+    "target_term": "笔记本电脑",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LEADING LIGHT",
+    "target_term": "引导灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LEASE LINE",
+    "target_term": "租赁线",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LED",
+    "target_term": "LED",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LIGHTING LIST",
+    "target_term": "灯具清单",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LIGHTING PLAN",
+    "target_term": "照明布置图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LIGHTING SOU",
+    "target_term": "照明创",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LIT PONY",
+    "target_term": "发光小马标识",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LIT SIGN",
+    "target_term": "发光标识",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LL FINISH",
+    "target_term": "商场饰面",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LOCKER",
+    "target_term": "更衣柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LOUVER",
+    "target_term": "排烟百叶",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LOUVER FRONT VIEW",
+    "target_term": "百叶正视图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LOUVER SECTION DETAILS",
+    "target_term": "百叶剖面详图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LaLaport Yokohama MW   <Men's>",
+    "target_term": "LaLaport横滨MW 〈男装〉",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LaLaport Yokohama MW   <Men’s>",
+    "target_term": "LaLaport横滨MW 〈男装〉",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LaLaport Yokohama MW   <Women's>",
+    "target_term": "LaLaport横滨MW 〈女装〉",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "LaLaport Yokohama MW   <Women’s>",
+    "target_term": "LaLaport横滨MW 〈女装〉",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Lala Port Yokohama 2F",
+    "target_term": "横滨LaLa Port 2F",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Latest Submission Status",
+    "target_term": "最新提交状态",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MALL AISLE",
+    "target_term": "商场通道",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MEN'S SALES",
+    "target_term": "男装卖场",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MEN'S ZONE",
+    "target_term": "男装区",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MILLWORKER",
+    "target_term": "木工施工",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MIRROR",
+    "target_term": "镜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MOTION SENSOR",
+    "target_term": "动态感应器",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MT-441 FLOOR TRIM",
+    "target_term": "MT-441 地面收边条",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "MUSIC",
+    "target_term": "音乐系统",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Men's",
+    "target_term": "男装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Merchandising Tools",
+    "target_term": "陈列道具",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Millwork Detail",
+    "target_term": "木工细部",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Millwork Detail, Base",
+    "target_term": "木工细部, 踢脚线",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "ModuleX",
+    "target_term": "ModuleX灯具",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "NEMA L5-30R",
+    "target_term": "NEMA L5-30R插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "NICHE",
+    "target_term": "壁龛",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Nester",
+    "target_term": "套叠桌",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Non-woven ground gravure printed, Wipeable,",
+    "target_term": "无纺布底凹版印花 可擦拭",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "OFFICE",
+    "target_term": "办公室",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "ON GREEN PANEL",
+    "target_term": "绿色面板底",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "OPEN",
+    "target_term": "通向",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "OUTLET PLAN",
+    "target_term": "插座布置图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Oak",
+    "target_term": "橡木",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Oak, Quarter-Sawn, Medium/Dark Stain, 40% Sheen",
+    "target_term": "橡木, 直纹, 中/深色染色, 40%光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "PANEL",
+    "target_term": "面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "PILL VITRINE",
+    "target_term": "玻璃饰品柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "PLAN",
+    "target_term": "平面图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "PLAN VIEW @ COUNTER TOP",
+    "target_term": "台面平面图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "PLINTH",
+    "target_term": "底座",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "POLO RALPH LAUREN",
+    "target_term": "POLO RALPH LAUREN",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "POS",
+    "target_term": "POS收银机",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "POWER BOARD",
+    "target_term": "配电箱",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "PROJECT",
+    "target_term": "项目",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Pantone Color 5535C: Green, Finish: Brushed, Semi-Gloss",
+    "target_term": "潘通5535C 绿色 拉丝半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Pendant light",
+    "target_term": "吊灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Plinth",
+    "target_term": "底座",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Polo Men's",
+    "target_term": "Polo 男装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Polo Men's/Women's/Kid's",
+    "target_term": "Polo 男装/女装/童装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Polo Men’s",
+    "target_term": "Polo 男装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Polo Women's",
+    "target_term": "Polo 女装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Polo Women’s",
+    "target_term": "Polo 女装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Powder Coat, Benjamin Moore, Color: Super White, Finish: Eggshell",
+    "target_term": "粉末喷涂 本杰明摩尔 超白色 蛋壳光",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "RETIRED FIXTURE",
+    "target_term": "已退役道具",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "REVISE AND RESUBMIT",
+    "target_term": "修改后重新提交",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "REVISION HISTORY",
+    "target_term": "修改记录",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "RL Standards",
+    "target_term": "RL标准件",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Retired",
+    "target_term": "已退役",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SALES",
+    "target_term": "卖场",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SALES AREA",
+    "target_term": "卖场区域",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SALES Area",
+    "target_term": "卖场面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SALES ENTRY",
+    "target_term": "卖场入口",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SCALE",
+    "target_term": "比例",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SECTION",
+    "target_term": "剖面图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SECTION DETAIL",
+    "target_term": "剖面详图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SECURITY CAMERA",
+    "target_term": "监控摄像头",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SHELF",
+    "target_term": "层板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SHROUD",
+    "target_term": "遮板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SHUTTER SWITCH",
+    "target_term": "卷帘开关",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SIDE PANEL",
+    "target_term": "侧面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SIDE SECTION",
+    "target_term": "侧剖面图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SIDE VIEW",
+    "target_term": "侧视图",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SIREN",
+    "target_term": "警报器",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SMOKE DETECTOR",
+    "target_term": "烟感探测器",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SMOKE EXHAUST VENTILATION",
+    "target_term": "排烟设备",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SPRINKLER",
+    "target_term": "喷淋头",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "STEEL RACK",
+    "target_term": "钢架",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "STOCK",
+    "target_term": "库房",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "STOCK ROOM",
+    "target_term": "库房",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "STORE FRONT",
+    "target_term": "店面",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SUS",
+    "target_term": "不锈钢(SUS)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SWING DOOR",
+    "target_term": "平开门",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SWITCH FOR SHUTTER",
+    "target_term": "卷帘开关",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "SWITCH FOR SMOKE EXHAUST",
+    "target_term": "排烟开关",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shelf w/FO_W1067",
+    "target_term": "带正面板层板_宽1067",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shelf w/FO_W1219",
+    "target_term": "带正面板层板_宽1219",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shelf w/FO_W914",
+    "target_term": "带正面板层板_宽914",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shelf_W1067",
+    "target_term": "层板_宽1067",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shelf_W1219",
+    "target_term": "层板_宽1219",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shelf_W914",
+    "target_term": "层板_宽914",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Shop Drawing Approval",
+    "target_term": "图纸审批记录",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Step",
+    "target_term": "踏步",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Submission",
+    "target_term": "提交",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Surface Mounted Hardware",
+    "target_term": "明装五金件",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "T.O.SHELF",
+    "target_term": "层板顶标高",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TABLE",
+    "target_term": "桌",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TBD",
+    "target_term": "待定",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TEL",
+    "target_term": "电话",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TITLE",
+    "target_term": "图名",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TOP SHELF",
+    "target_term": "顶层层板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TOTAL Area",
+    "target_term": "总面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "TRIM",
+    "target_term": "收边条",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Table-top Vitrine",
+    "target_term": "桌面展示柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "UPS",
+    "target_term": "不间断电源(UPS)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "V-GROOVE",
+    "target_term": "V型槽板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "V-GROOVE PANEL",
+    "target_term": "V型槽板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "VENEERED FLOORING",
+    "target_term": "贴皮木地板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "VESTIBULE",
+    "target_term": "门厅",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "VHS",
+    "target_term": "通风百叶(VHS)",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "VIEW1",
+    "target_term": "视图1",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "VINYL TILE",
+    "target_term": "PVC地砖",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Vitrine",
+    "target_term": "展示柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WALL",
+    "target_term": "墙",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WALL CASE",
+    "target_term": "壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WALLCASE",
+    "target_term": "壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WALLCOVERING",
+    "target_term": "墙纸",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WIRELESS ACCESS POINT",
+    "target_term": "无线AP",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WOMEN'S SALES",
+    "target_term": "女装卖场",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WOMEN'S ZONE",
+    "target_term": "女装区",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "WORK COUNTER",
+    "target_term": "工作台",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Wall case",
+    "target_term": "壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "White",
+    "target_term": "白色",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "White matte melamine",
+    "target_term": "白色哑光三聚氰胺板",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Wire Glass, Misco Polished Wire",
+    "target_term": "夹丝玻璃, Misco抛光丝",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Women's",
+    "target_term": "女装",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "Yes",
+    "target_term": "有",
+    "domain": ""
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "zh",
+    "source_term": "i Phone",
+    "target_term": "iPhone",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "(P-タイル貼り)",
+    "target_term": "(P-地砖铺贴)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "(SALES AREA:t9.5mm)",
+    "target_term": "(卖场区域:厚9.5mm)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "(ファブリックコルトン)",
+    "target_term": "(布面灯箱片)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "+欄間パネル",
+    "target_term": "+横档板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "2段降下に変更(B工事)",
+    "target_term": "改为两段下降(B工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "36回路希望",
+    "target_term": "希望36回路",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "4口コンセント×1  FL+900",
+    "target_term": "4口插座×1  FL+900",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "4口コンセント×1　FL+600",
+    "target_term": "4口插座×1  FL+600",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": ": 天井までの壁",
+    "target_term": ": 至天花的墙",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "<バックカウンター内>",
+    "target_term": "<后柜台内>",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "AIOプリンター用",
+    "target_term": "一体机打印机用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ALSOK機器",
+    "target_term": "ALSOK安防设备",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "AP用",
+    "target_term": "无线AP用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "AURORAカメラ (天井面)",
+    "target_term": "AURORA摄像头（天花面）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "BGM用",
+    "target_term": "背景音乐用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "BGM用 FL+1750",
+    "target_term": "背景音乐用 FL+1750",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "BGM用スピーカー(4インチ,φ280)",
+    "target_term": "BGM喇叭(4英寸,φ280)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "CCTVモニター/mini PC 用",
+    "target_term": "监控显示器/迷你主机用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "DL取付",
+    "target_term": "筒灯安装",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "DNライティング株式会社　担当：宇藤山",
+    "target_term": "DN照明公司 负责人：宇藤山",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "FL-3mm渡し",
+    "target_term": "FL-3mm过渡",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "GHP 天井カセット 11.2kW",
+    "target_term": "GHP天花卡式空调 11.2kW",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ITラックの上部：",
+    "target_term": "IT机柜上部：",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ITラック用 FL+300",
+    "target_term": "IT机柜用 FL+300",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "IT端末未使用口コンセント",
+    "target_term": "IT终端未使用插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "LAN:アウトレットの有無、",
+    "target_term": "LAN:接口有无、",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "LAN配線用開口",
+    "target_term": "网线布线用开孔",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "LAP TOP/チケットプリンター用",
+    "target_term": "笔记本/小票打印机用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "LED ユニバーサルDL",
+    "target_term": "LED万向筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "LED(電球色)",
+    "target_term": "LED(暖白光)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "LED特注スポット",
+    "target_term": "LED定制射灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "MT-441 FO(070A-004a-B-MT441)フェイスアウトバー",
+    "target_term": "MT-441 正面展示杆(070A-004a-B-MT441)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "MT-441 FO(070A-005a-A-MT441)　フェイスアウトバー",
+    "target_term": "MT-441 正面展示杆(070A-005a-A-MT441)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "MT-441 HG(070A-004b-B-MT441)ハングバー",
+    "target_term": "MT-441 挂杆(070A-004b-B-MT441)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "MT-441 HG(070A-005b-A-MT441)　ハングバー",
+    "target_term": "MT-441 挂杆(070A-005b-A-MT441)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "NEMA L5-30R×1回路 30A",
+    "target_term": "NEMA L5-30R×1回路 30A",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "POS用　4口コンセント×1",
+    "target_term": "POS机用 4口插座×1",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "PT-145 SHELF(070A-004d-A-PT145)　棚板",
+    "target_term": "PT-145 层板(070A-004d-A-PT145)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "PlinthからのHG高さ",
+    "target_term": "从底座到挂杆高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "RL支給のフローリング材をスロープ加工",
+    "target_term": "RL提供的木地板材料做斜坡加工",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "SUS (環境工事)",
+    "target_term": "不锈钢(商场工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "TOP SHELF高さ",
+    "target_term": "顶层层板高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "UPSコンセント(15A) ITサーバー経由",
+    "target_term": "UPS插座(15A) 经IT服务器",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "UPSコンセント×2",
+    "target_term": "UPS插座×2",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "UPS用コンセント：型番指定あり",
+    "target_term": "UPS插座：有指定型号",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "UPS用電源転がし",
+    "target_term": "UPS电源地面走线",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "UPS用露出コンセント（床転がし）：型番指定あり",
+    "target_term": "UPS明装插座（地面走线）：有指定型号",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "VHS(吹出口/ 結露防止型)",
+    "target_term": "VHS(出风口/防结露型)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "VHS(給気口) 300x300",
+    "target_term": "VHS(进气口) 300×300",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "V目地パネル",
+    "target_term": "V型槽板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "WD-133 SHELF(070A-004d-B-WD133) 棚板",
+    "target_term": "WD-133 层板(070A-004d-B-WD133)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "WTFシリーズ スクエアプレート (ホワイト)/Panasonic",
+    "target_term": "WTF系列方形面板(白色)/松下",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "Wallpaper, Item: #PRL704/04, Old Hall Floral (Women's),",
+    "target_term": "墙纸 型号: #PRL704/04 Old Hall花卉（女装区）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "Wallpaper, Item: PRL116/05 Marrifield Stripe (Men's),",
+    "target_term": "墙纸 型号: PRL116/05 Marrifield条纹（男装区）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "i Phone充電用",
+    "target_term": "iPhone充电用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※ No.  1 〜 7　照明器具問合せ先",
+    "target_term": "※ No.1~7 灯具咨询联系方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※ No.  11      　照明器具問合せ先",
+    "target_term": "※ No.11 灯具咨询联系方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※ No.  8      　照明器具問合せ先",
+    "target_term": "※ No.8 灯具咨询联系方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※ No.  9,10,14,15,18　照明器具問合せ先",
+    "target_term": "※ No.9,10,14,15,18 灯具咨询联系方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※ No. 16　     照明器具問合せ先",
+    "target_term": "※ No.16 灯具咨询联系方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※148mm幅：RL支給のフローリング材を加工",
+    "target_term": "※148mm宽：RL提供的木地板材料加工",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※4口の場合は図面上に記載",
+    "target_term": "※如为4口已标注在图面上",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※LKは抜止型を示す",
+    "target_term": "※LK表示防脱型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※オプション一式",
+    "target_term": "※选件一套",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※サイザルは見切りに挿し込む形で納めること（突きつけにしない）",
+    "target_term": "※剑麻地毯须插入收边条固定（不可直接对接）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※シリンダー鍵",
+    "target_term": "※圆柱锁",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※ストアフロント面積",
+    "target_term": "※店面面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※スライドレール：セルフ＆ソフトクロージング機構付",
+    "target_term": "※滑轨：带自闭和缓冲功能",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※三方枠天端にディスプレイ用の溝あり",
+    "target_term": "※门套顶部有展示用凹槽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※加重による変形が起こらないように納まり要検討",
+    "target_term": "※需研究收口方式以防承重变形",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※想定容量",
+    "target_term": "※预估容量",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※要専用電源",
+    "target_term": "※需专用电源",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※見付け、前後以外はメラミン(白)",
+    "target_term": "※可视面和前后面以外用白色三聚氰胺板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "※見付け、前後以外はメラミン（白）",
+    "target_term": "※可视面和前后面以外用白色三聚氰胺板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "◆A工事・B工事",
+    "target_term": "◆A工程/B工程",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "◆フローリングは乱尺乱貼り",
+    "target_term": "◆木地板须随机错缝铺装",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "からの",
+    "target_term": "起算",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "に点検口を設ける場合は細目地タイプのこと",
+    "target_term": "设检修口须用细缝型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "の既存点検口は細目地タイプに変更",
+    "target_term": "的现有检修口改为细缝型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "の点検口はフレームタイプ可",
+    "target_term": "的检修口可用框架型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ららぽーと横浜",
+    "target_term": "LaLaport横滨",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "アウトレットの手配/設置：各ベンダー",
+    "target_term": "接口的采购/安装：各供应商负责",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "アンティークオーク",
+    "target_term": "仿古橡木色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "インチ",
+    "target_term": "英寸",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "オーク",
+    "target_term": "橡木",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "オーク 柾目　ミディアム/ダーク染色 4分艶",
+    "target_term": "橡木 直纹 中深色染色 4分光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カウンター裏パネルは",
+    "target_term": "柜台内侧面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カットリレーコンセント",
+    "target_term": "切断继电器插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カットリレーコンセント　※B工事",
+    "target_term": "切断继电器插座 ※B工程",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カットリレーコンセント増設",
+    "target_term": "增设切断继电器插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カットリレーコンセント増設(B工事)",
+    "target_term": "新增切断继电器插座(B工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カメラ",
+    "target_term": "摄像头",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カーペット貼り",
+    "target_term": "铺地毯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ガラリ-A",
+    "target_term": "百叶A",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ガラリ-A　(スチール焼付塗装)",
+    "target_term": "百叶A（钢材烤漆）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "キャスター",
+    "target_term": "脚轮",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "クリアー焼付け",
+    "target_term": "透明烤漆",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "クリア強化ガラス",
+    "target_term": "透明钢化玻璃",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "クリア強化ガラス ※飛散防止フィルム貼り",
+    "target_term": "透明钢化玻璃 ※贴防爆膜",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "グレビディビング（カウンターヒンジ）",
+    "target_term": "重力铰链（柜台铰链）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "コンパネ下地",
+    "target_term": "混凝土模板底层",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "コンパネ下地 + カーペット貼り",
+    "target_term": "胶合板底层 + 铺地毯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "コーン",
+    "target_term": "锥形筒灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ゴミ箱(キャスター付き)",
+    "target_term": "垃圾桶(带脚轮)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ゴミ箱背面",
+    "target_term": "垃圾桶背面",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "サイザル",
+    "target_term": "剑麻地毯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "シャッター",
+    "target_term": "卷帘门",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "シャッターSW移設(B工事)",
+    "target_term": "卷帘开关移位(B工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "シャッターメンテナンス用に",
+    "target_term": "用于卷帘门维修",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "シャッター閉鎖スイッチ",
+    "target_term": "卷帘门关闭开关",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "シャッター閉鎖スイッチ（壁面）",
+    "target_term": "卷帘门关闭开关(墙面)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スチール",
+    "target_term": "钢材",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スチール曲げ",
+    "target_term": "钢板折弯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ストアフロント面積",
+    "target_term": "店面面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ストック",
+    "target_term": "库存间",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ストック内手元灯",
+    "target_term": "库房内台灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ストック内棚下間接照明",
+    "target_term": "库房内层板下间接照明",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スプリンクラー",
+    "target_term": "喷淋头",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スプリンクラー(72℃)",
+    "target_term": "喷淋头(72℃)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スライドレール",
+    "target_term": "滑轨",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スライドレール:2026/1,LAMP",
+    "target_term": "滑轨:2026/1,LAMP品牌",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ダクト工事は",
+    "target_term": "风管工程为",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ダンパー設置",
+    "target_term": "设置风阀",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ダーク染色",
+    "target_term": "深色染色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "テリトリーチップ : 30φ @450 (設定)",
+    "target_term": "领域标识钉: 30φ @450（设定）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ディスプレイ用パイプ",
+    "target_term": "展示用吊管",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ニッチ",
+    "target_term": "壁龛",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ハッチ壁",
+    "target_term": "检修口墙",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ハングバー",
+    "target_term": "挂杆",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "バックカウンター",
+    "target_term": "后柜台",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "パネル PT-445",
+    "target_term": "面板 PT-445",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "パントーンカラー",
+    "target_term": "潘通色号",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "パントーンカラー: 5535C Green、刷毛塗装、半艶",
+    "target_term": "潘通色号: 5535C绿色 刷涂半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フェイスアウトバー",
+    "target_term": "正面展示杆",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フットワークの母下面",
+    "target_term": "脚踏板底面",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フレームタイプ",
+    "target_term": "框架型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フローリング",
+    "target_term": "木地板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フローリング貼り/乱貼り",
+    "target_term": "木地板铺装/随机错缝",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ブラック",
+    "target_term": "黑色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ブロンズ古美色仕上げ",
+    "target_term": "仿古青铜色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "プレート指定：WTFシリーズ スクエアプレート (ホワイト)",
+    "target_term": "面板指定：WTF系列方形面板（白色）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ベニヤ",
+    "target_term": "胶合板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ベンジャミンムーア スーパーホワイト ローラー塗り 2分艶仕上げ",
+    "target_term": "本杰明摩尔 超白色 滚涂2分光",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ベンジャミンムーア スーパーホワイト 刷毛塗り 半艶仕上げ",
+    "target_term": "本杰明摩尔 超白色 刷涂半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ベンジャミンムーア スーパーホワイト 粉体塗装 2分艶仕上げ",
+    "target_term": "本杰明摩尔 超白色 粉末喷涂2分光",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ホワイト",
+    "target_term": "白色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ホワイト/ホワイト",
+    "target_term": "白色/白色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ボーダー",
+    "target_term": "镶边条",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ボーダー2枚目までスロープ加工",
+    "target_term": "镶边条前2条做斜坡处理",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "マグネット脱着式",
+    "target_term": "磁铁可拆式",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "マットブラック/トリムレス",
+    "target_term": "哑光黑/无边框",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ミディアム",
+    "target_term": "中色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "メラミン化粧板(白)",
+    "target_term": "白色三聚氰胺贴面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "メラミン化粧板（白）",
+    "target_term": "白色三聚氰胺贴面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "メンテ用開口蓋",
+    "target_term": "维护用开孔盖板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "メーカー",
+    "target_term": "厂商",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ラックの上部",
+    "target_term": "货架上方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ラック設置",
+    "target_term": "设置货架",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "リースライン床見切",
+    "target_term": "租赁线地面收边",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ローラー塗り",
+    "target_term": "滚涂",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・Sales Areaに点検口を設ける場合は細目地タイプのこと",
+    "target_term": "・卖场如设检修口须用窄缝型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・Sales Areaの既存点検口は細目地タイプに変更(C工事)",
+    "target_term": "・卖场现有检修口改为窄缝型(C工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・Stockの点検口はフレームタイプ可",
+    "target_term": "・库房检修口可用框架型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・ダウンライト取り付けの場合は事前に天井フトコロと器具高を確認の事",
+    "target_term": "・安装筒灯时须提前确认天花内部空间和灯具高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・ダクト工事はB工事",
+    "target_term": "・风管工程为B工程",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・上記にダイノックME486＋テンタック黒（強粘着）合わせ",
+    "target_term": "・上述件贴3M戴诺克ME486＋黑色强粘胶",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・個別の納入仕様書に記載の消費電力は JIS C 8105-3 の試験測定方法による(ModuleX製品)",
+    "target_term": "・各灯具规格书中标注的功耗按JIS C 8105-3测试方法（ModuleX产品）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・各スイッチに負荷名称等を明記の事",
+    "target_term": "・各开关须标明负载名称等",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・器具色は最終仕様を確認の上、発注の事",
+    "target_term": "・灯具颜色请确认最终规格后再下单",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・専用調光器が必要な場合（ﾛｰﾎﾞﾙﾄ器具、蛍光灯器具等）は各ﾒｰｶｰに確認の事",
+    "target_term": "・如需专用调光器（低压灯具、荧光灯具等）请与各厂商确认",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・引き渡し前に必ず点灯確認をする事",
+    "target_term": "・移交前务必确认点灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・照明器具の開口寸法、取り付け方法は各メーカーの仕様書を確認の事",
+    "target_term": "・灯具开孔尺寸和安装方法请确认各厂商规格书",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・現場にて器具取り付け位置等の変更が必要な場合は必ず設計者に確認の事",
+    "target_term": "・现场如需变更灯具安装位置等，务必与设计师确认",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・発注色に関しては日塗工No,を確認の上、発注の事",
+    "target_term": "・下单颜色请确认日本涂料工业会色号后再下单",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・真鍮1.5t皿穴加工＋ビス",
+    "target_term": "・黄铜1.5t沉头孔加工＋螺丝",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "・間接照明器具及び什器内照明器具は実寸法を確認の上、発注の事",
+    "target_term": "・间接照明灯具及道具内照明灯具须确认实际尺寸后再下单",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "一般2口コンセント　※4口の場合は図面上に記載",
+    "target_term": "普通2口插座 ※4口已标注在图面上",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "一般2口コンセント　抜止型(施設ルール)",
+    "target_term": "普通2口插座 防脱型(商场规定)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "一般4口コンセント",
+    "target_term": "普通4口插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "三方枠",
+    "target_term": "门套",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "三方枠/建具",
+    "target_term": "门套/门扇",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "予備用",
+    "target_term": "备用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "予備用　4口コンセント×1",
+    "target_term": "备用 4口插座×1",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "仕様：サイザル箇所",
+    "target_term": "规格：剑麻地毯区域",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "停電検出回路",
+    "target_term": "停电检测回路",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "備　考 / フィルター / オプション",
+    "target_term": "备注 / 滤镜 / 选件",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "光源 / 色温度",
+    "target_term": "光源 / 色温",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "光源・ドライバー付",
+    "target_term": "含光源和驱动",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "入力電力",
+    "target_term": "输入功率",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "共用通路より",
+    "target_term": "从公共通道",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "共通通路",
+    "target_term": "公共通道",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内側のフレーム",
+    "target_term": "内框",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内寸高さ",
+    "target_term": "内净高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内底板",
+    "target_term": "内底板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内照式サイン/ロゴ ゴールド色/パネル PT-445",
+    "target_term": "内发光标识/LOGO 金色/面板 PT-445",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内照式ポニーロゴ/ゴールド色/",
+    "target_term": "内发光小马LOGO/金色/",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内照式ポニーロゴ/ゴールド色/パネル PT-445",
+    "target_term": "内发光小马LOGO/金色/面板 PT-445",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内部に梯子設置",
+    "target_term": "内部设置梯子",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内部に梯子設置（C工事）",
+    "target_term": "内部设置梯子（C工程）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "冷蔵庫",
+    "target_term": "冰箱",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "冷蔵庫の上部",
+    "target_term": "冰箱上方",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "冷蔵庫の上部に可動棚",
+    "target_term": "冰箱上方设可调层板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "冷蔵庫サイズ",
+    "target_term": "冰箱尺寸",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "冷蔵庫サイズ：W525xD571xH1160",
+    "target_term": "冰箱尺寸：W525×D571×H1160",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "冷蔵庫用",
+    "target_term": "冰箱用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "分岐",
+    "target_term": "分支",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "分艶",
+    "target_term": "半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "分艶仕上げ",
+    "target_term": "半光泽处理",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "別図参照",
+    "target_term": "详见其他图纸",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "別図参照(FF-01-3)",
+    "target_term": "详见图纸FF-01-3",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "別図参照(FF-01-4)",
+    "target_term": "详见图纸FF-01-4",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "別装参照(FF-01-4)",
+    "target_term": "详见图纸FF-01-4",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "刷毛塗り",
+    "target_term": "刷涂",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "刷毛塗装",
+    "target_term": "刷涂",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "加工済シール貼り",
+    "target_term": "贴已加工好的贴纸",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "勤怠機",
+    "target_term": "考勤机",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "勤怠用(壁の中)",
+    "target_term": "考勤机用(墙内)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "半艶",
+    "target_term": "半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "半艶仕上げ",
+    "target_term": "半光泽处理",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "取付",
+    "target_term": "安装",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可動式ゴミ箱",
+    "target_term": "可移动垃圾桶",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可動棚に",
+    "target_term": "设为活动层板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可動棚には",
+    "target_term": "活动层板上",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可動棚にはMUSICラック設置",
+    "target_term": "可调层板上放MUSIC架",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可動配線目隠しプレート",
+    "target_term": "可移动线缆遮蔽板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可変仕切り板×4",
+    "target_term": "可调隔板×4",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "台",
+    "target_term": "台",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "台数",
+    "target_term": "数量",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "台輪",
+    "target_term": "底框",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "合計電力",
+    "target_term": "总功率",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "合計電力/面積",
+    "target_term": "每平方米功率",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "同じになるようにガチャ柱の設置高さを調整のこと",
+    "target_term": "保持一致，请调整层板支柱的安装高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "名　称　/　型　番",
+    "target_term": "名称 / 型号",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "吹出口",
+    "target_term": "出风口",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "器具台数要確認(サイン１台につき照明器具10台で計算)",
+    "target_term": "灯具数量待确认(按每块标识配10台灯计算)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "器具台数要確認(サイン１台につき照明器具5台で計算)",
+    "target_term": "灯具数量待确认(按每块标识配5台灯计算)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "器具色",
+    "target_term": "灯具颜色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "器具高さ",
+    "target_term": "灯具高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "回路",
+    "target_term": "回路",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "埋込穴径",
+    "target_term": "开孔直径",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "増・移設",
+    "target_term": "增设・移设",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "増設",
+    "target_term": "新增",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁",
+    "target_term": "墙",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁紙",
+    "target_term": "墙纸",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁紙/ PRL025/10",
+    "target_term": "墙纸 PRL025/10",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁紙/ SPRL7007/04",
+    "target_term": "墙纸 SPRL7007/04",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁紙: PRL6250/10",
+    "target_term": "墙纸 PRL6250/10",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁面パネル",
+    "target_term": "墙面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "壁面什器",
+    "target_term": "壁柜",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "外フードアルミΦ75白艶消し",
+    "target_term": "外罩铝制Φ75白色消光",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "外部スピーカー（天井面）",
+    "target_term": "外部扬声器(天花面)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天井カセット",
+    "target_term": "天花盒式(空调)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天井点検口",
+    "target_term": "天花检修口",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天井照明",
+    "target_term": "天花灯具",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天井開口",
+    "target_term": "天花开孔",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天井開口の数",
+    "target_term": "天花开孔数量",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天井面",
+    "target_term": "天花面",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "富士フイルムイメージングシステムズ 株式会社",
+    "target_term": "富士胶片影像系统公司",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "対象面積",
+    "target_term": "对象面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "工事",
+    "target_term": "工程",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "巾木",
+    "target_term": "踢脚线",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "巾木コンセント：NKPN-1UP PW(ホワイト)/神保電気",
+    "target_term": "踢脚线插座：NKPN-1UP PW(白色)/神保电气",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "常設コンセント",
+    "target_term": "常设插座",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "建具",
+    "target_term": "门窗",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "廻り縁",
+    "target_term": "顶角线",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "廻り縁/壁面パネル",
+    "target_term": "顶角线/墙面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "御影石",
+    "target_term": "花岗岩",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "御影石 ジンバブエブラック",
+    "target_term": "花岗岩 津巴布韦黑",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "必ず継ぎ目が揃わないように貼ること",
+    "target_term": "接缝不可对齐",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "必要排煙面積",
+    "target_term": "所需排烟面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "想定レイアウト",
+    "target_term": "预想布置",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "手元灯",
+    "target_term": "台灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "抽斗",
+    "target_term": "抽屉",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "担当",
+    "target_term": "负责人",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "振れ止め対策必要",
+    "target_term": "需防振措施",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "排煙ガラリ",
+    "target_term": "排烟百叶",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "排煙スイッチ増設",
+    "target_term": "增设排烟开关",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "排煙スイッチ増設(B工事)",
+    "target_term": "新增排烟开关(B工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "排煙口",
+    "target_term": "排烟口",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "排煙計算図",
+    "target_term": "排烟计算图",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "撤去",
+    "target_term": "拆除",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "新規分電盤(B工事)",
+    "target_term": "新配电箱(B工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "施設指定端末用",
+    "target_term": "商场指定终端用",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "既存シャッター",
+    "target_term": "现有卷帘门",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "既存シャッター/",
+    "target_term": "原有卷帘/",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "既存シャッター/防煙垂れ壁/",
+    "target_term": "原有卷帘/挡烟垂壁/",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "有効幅",
+    "target_term": "有效宽度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "有効開口面積",
+    "target_term": "有效开孔面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "有効面積",
+    "target_term": "有效面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "有効高",
+    "target_term": "有效高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "本体のみ",
+    "target_term": "仅灯体",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "柾目",
+    "target_term": "直纹",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "株式会社ライティング創",
+    "target_term": "Lighting创公司",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "棚板",
+    "target_term": "层板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "棚板×2",
+    "target_term": "层板×2",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "棚板の設置高さとワークカウンターの天板の高さが",
+    "target_term": "层板安装高度与工作台台面高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "様手配工事",
+    "target_term": "方安排工程",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "欄間パネル",
+    "target_term": "横档板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "段降下に変更",
+    "target_term": "改为分段降落",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "消",
+    "target_term": "消防",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "消火器BOX移設(B工事)",
+    "target_term": "灭火器箱移位(B工程)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "点検口付近に",
+    "target_term": "检修口附近",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "無線アクセスポイント（天井面）",
+    "target_term": "无线接入点(天花面)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "焼付塗装",
+    "target_term": "烤漆",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "煙感知器",
+    "target_term": "烟感探测器",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "照明SW",
+    "target_term": "照明开关",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "照明器具リスト（従来器具プラン）",
+    "target_term": "灯具清单（沿用原有灯具方案）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "照明用SW(この壁面に集約)",
+    "target_term": "照明开关(集中在此面墙)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "環境仕上げ",
+    "target_term": "商场统一饰面",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "用スピーカー",
+    "target_term": "用扬声器",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "甲板",
+    "target_term": "台面",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "画像カメラ（天井面）",
+    "target_term": "图像摄像头(天花面)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "白 刷毛塗り 半艶",
+    "target_term": "白色 刷涂半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "白 刷毛塗り/ 半艶",
+    "target_term": "白色 刷涂/半光泽",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "白 焼付塗装",
+    "target_term": "白色烤漆",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "白 焼付塗装（PT-145同色）",
+    "target_term": "白色烤漆(PT-145同色)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "真鍮古美色仕上げ",
+    "target_term": "仿古黄铜色",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "真鍮古美色仕上げ+クリアー焼付け",
+    "target_term": "仿古黄铜色+透明烤漆",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "移設",
+    "target_term": "移设",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "粉体塗装",
+    "target_term": "粉体涂装",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "細目地タイプ",
+    "target_term": "细缝型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "結露防止型",
+    "target_term": "防结露型",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "給気口",
+    "target_term": "进气口",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "給水",
+    "target_term": "给水",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "給水25A",
+    "target_term": "供水25A",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "腰見切り/",
+    "target_term": "腰线/",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "腰見切り/壁面パネル",
+    "target_term": "腰线/墙面板",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "複合フローリング（RL支給品）",
+    "target_term": "复合木地板（RL提供）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "見上げ図",
+    "target_term": "仰视图",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "記　　号",
+    "target_term": "符号",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "設置機器詳細については要確認",
+    "target_term": "具体安装设备详情需确认",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "詳細は別途IT資料参照のこと",
+    "target_term": "详情请参照IT资料",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "詳細は別途詳細図参照のこと",
+    "target_term": "详情请参照详细图纸",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "誘導灯",
+    "target_term": "引导灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "避難口誘導灯",
+    "target_term": "避难出口引导灯",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "配線:各ベンダー",
+    "target_term": "布线：各供应商负责",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "配線の本数は別途各ベンダーの資料参照のこと",
+    "target_term": "线缆数量请参照各供应商资料",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "配線ダクト：L500",
+    "target_term": "走线槽：L500",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "配線用開口",
+    "target_term": "布线用开孔",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "開口部面積",
+    "target_term": "开孔部面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防火シャッター",
+    "target_term": "防火卷帘",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防火扉",
+    "target_term": "防火门",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防火扉 環境仕上げ",
+    "target_term": "防火门 商场统一饰面",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防煙垂れ壁",
+    "target_term": "挡烟垂壁",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防煙垂れ壁/",
+    "target_term": "挡烟垂壁/",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防犯カメラ（天井面）",
+    "target_term": "防犯摄像头(天花面)",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "隠し扉",
+    "target_term": "隐藏门",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "電源取り出し口",
+    "target_term": "电源引出口",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "非常放送スピーカー",
+    "target_term": "紧急广播扬声器",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "非常照明",
+    "target_term": "应急照明",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "面積",
+    "target_term": "面积",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "飛散防止フィルム貼り",
+    "target_term": "贴防爆膜",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "高さ",
+    "target_term": "高度",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "黄色表記",
+    "target_term": "黄色标注",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "（フローリングとレベル合わせ）",
+    "target_term": "（与木地板找平）",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "（株）モデュレックス",
+    "target_term": "ModuleX公司",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "＋MT-441見切り",
+    "target_term": "＋MT-441收边条",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "＜売り場サイザルカーペット参考お納まり詳細＞",
+    "target_term": "＜卖场剑麻地毯参考收口详图＞",
+    "domain": ""
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "TVボード",
+    "target_term": "电视柜",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "カウンターテーブル",
+    "target_term": "吧台桌",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "クローゼット",
+    "target_term": "衣柜",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "コンシェルジュカウンター",
+    "target_term": "礼宾台",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "サービスカウンター",
+    "target_term": "服务台",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "シェルフ",
+    "target_term": "货架",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スツール",
+    "target_term": "凳子",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "センターテーブル / サイドテーブル",
+    "target_term": "茶几 / 边桌",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ソファ",
+    "target_term": "沙发",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "チェア / 1Pチェア",
+    "target_term": "椅子 / 单人椅",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "テーブル",
+    "target_term": "桌子/餐桌",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "デスク",
+    "target_term": "书桌",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ナイトテーブル",
+    "target_term": "床头柜",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ブラケットライト / スタンドライト / ペンダントライト",
+    "target_term": "壁灯 / 落地灯 / 吊灯",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ヘッドボード",
+    "target_term": "床头板",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ベンチ / フットベンチ",
+    "target_term": "长凳 / 脚凳",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ボトルラック",
+    "target_term": "瓶架",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ミニバー(MB)",
+    "target_term": "迷你吧",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "レジ",
+    "target_term": "收银台",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "レセプションカウンター",
+    "target_term": "前台接待柜",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ワゴン",
+    "target_term": "推车",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "姿見 / ミラー",
+    "target_term": "全身镜 / 镜子",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "植栽",
+    "target_term": "绿植",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "陳列什器",
+    "target_term": "展示架",
+    "domain": "产品名称"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "pcs / 台 / 個",
+    "target_term": "pcs / 台 / 个",
+    "domain": "数量・単位"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "各3pcs計6pcs",
+    "target_term": "各3pcs共6pcs",
+    "domain": "数量・単位"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "要確認",
+    "target_term": "待确认",
+    "domain": "数量・単位"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "計 / 合計",
+    "target_term": "共 / 合计",
+    "domain": "数量・単位"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "PVC",
+    "target_term": "PVC",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "アクリル / 乳半アクリル",
+    "target_term": "亚克力 / 乳白亚克力",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "アジャスター",
+    "target_term": "调整脚",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ウレタン",
+    "target_term": "海绵",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "クリアミラー",
+    "target_term": "透明镜",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "コーリアン",
+    "target_term": "可丽耐",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ステンレス / SUS",
+    "target_term": "不锈钢",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ステンレスパイプ φ25×635（鏡面）",
+    "target_term": "不锈钢管 φ25×635（镜面）",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ハンガーパイプ",
+    "target_term": "衣杆",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "バランス板",
+    "target_term": "平衡板",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フォーミカ",
+    "target_term": "富美家（Formica，防火板品牌，保留品牌名）",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ホワイトオーク無垢",
+    "target_term": "白橡木实木",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ホワイトオーク突板",
+    "target_term": "白橡木木皮",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "メラミン化粧板（フォーミカ）",
+    "target_term": "**防火板**（HPL高压层压板）　⚠️不要直译「三聚氰胺装饰板」",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "メーカー品 / 既製品",
+    "target_term": "厂家成品 / 成品",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "レザー / 合皮(PVCレザー)",
+    "target_term": "皮革 / 人造革(PVC皮)",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "小口（PVC）",
+    "target_term": "封边（PVC）",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "張地 / ファブリック",
+    "target_term": "面料 / 布艺",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "木塗装 / 焼付塗装",
+    "target_term": "木漆 / 烤漆",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "無垢材",
+    "target_term": "实木",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "突板 / 練り付け",
+    "target_term": "木皮 / 贴木皮",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "自在キャスター",
+    "target_term": "万向轮",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "間接照明",
+    "target_term": "间接照明",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "防火板",
+    "target_term": "防火板",
+    "domain": "材料・表面処理"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "DTC",
+    "target_term": "DTC（铰链/滑轨品牌）",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "コンセント開口",
+    "target_term": "插座开口",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "スライドレール",
+    "target_term": "滑轨",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "ダンパー無",
+    "target_term": "无阻尼",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "フレーム",
+    "target_term": "框架",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "マグネットキャッチ",
+    "target_term": "磁碰",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "丁番",
+    "target_term": "铰链",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "側板",
+    "target_term": "侧板",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "内部",
+    "target_term": "内部",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "取手",
+    "target_term": "拉手",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "可動棚",
+    "target_term": "活动隔板",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "天板",
+    "target_term": "台面",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "客先支給 / 客供",
+    "target_term": "客供（客户提供）",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "工場支給",
+    "target_term": "工厂提供",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "座面高（SH）",
+    "target_term": "座面高（SH）",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "本体",
+    "target_term": "本体",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "正面",
+    "target_term": "正面",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "現場取付 / 現場安装",
+    "target_term": "现场安装",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "脚",
+    "target_term": "脚",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "裏面",
+    "target_term": "背面",
+    "domain": "部位・五金・施工"
+  },
+  {
+    "source_lang": "ja",
+    "target_lang": "zh",
+    "source_term": "調整材",
+    "target_term": "调整材",
+    "domain": "部位・五金・施工"
+  }
+]

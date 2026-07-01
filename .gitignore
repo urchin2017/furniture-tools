@@ -1,0 +1,40 @@
+# ---- 密钥（绝不上传）----
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Supabase 本地临时 ----
+supabase/.temp/
+supabase/.branches/
+
+# ---- OS / 编辑器 ----
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+.idea/
+.vscode/
+
+# ---- 运行时产物 ----
+/tmp/
+apps/api/tmp/

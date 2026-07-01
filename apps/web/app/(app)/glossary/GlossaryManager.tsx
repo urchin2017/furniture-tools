@@ -22,9 +22,10 @@ export default function GlossaryManager() {
   const [nDomain, setNDomain] = useState("");
   const [adding, setAdding] = useState(false);
 
-  // 行内编辑
+  // 行内编辑 / 行内删除确认
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,8 +84,7 @@ export default function GlossaryManager() {
     if (nSource === sourceLang || sourceLang === "all") load();
   }
 
-  async function onDelete(id: string) {
-    if (!confirm("确定删除这条词条？")) return;
+  async function doDelete(id: string) {
     setErr(null);
     const { error } = await supabase.from("glossary").delete().eq("id", id);
     if (error) {
@@ -92,6 +92,7 @@ export default function GlossaryManager() {
       return;
     }
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    setConfirmingId(null);
   }
 
   function startEdit(entry: GlossaryEntry) {
@@ -278,19 +279,38 @@ export default function GlossaryManager() {
                           取消
                         </button>
                       </>
+                    ) : confirmingId === e.id ? (
+                      <>
+                        <span className="text-muted mr-2">确认删除？</span>
+                        <button
+                          onClick={() => doDelete(e.id)}
+                          className="text-red-600 hover:underline mr-3"
+                        >
+                          确认
+                        </button>
+                        <button
+                          onClick={() => setConfirmingId(null)}
+                          className="text-muted hover:underline"
+                        >
+                          取消
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button
-                          onClick={() => startEdit(e)}
-                          className="text-brand hover:underline mr-3"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          onClick={() => onDelete(e.id)}
-                          className="text-red-600 hover:underline"
+                          onClick={() => {
+                            setConfirmingId(e.id);
+                            setEditingId(null);
+                          }}
+                          className="text-red-600 hover:underline ml-3 float-right"
                         >
                           删除
+                        </button>
+                        <button
+                          onClick={() => startEdit(e)}
+                          className="text-brand hover:underline"
+                        >
+                          编辑
                         </button>
                       </>
                     )}

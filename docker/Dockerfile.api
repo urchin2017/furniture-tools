@@ -1,0 +1,36 @@
+# apps/api 镜像：FastAPI + shared/py 机械脚本依赖。
+# 构建时 context 必须是仓库根（需要同时拿到 shared/py 和 apps/api）：
+#   docker build -f docker/Dockerfile.api -t furniture-api ..
+FROM python:3.11-slim
+
+# LibreOffice(docx/pptx/xlsx 转换) + poppler-utils(pdftotext/pdftoppm) +
+# weasyprint 的 pango/cairo 渲染栈 + 中日 CJK 字体 + ImageMagick。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libreoffice \
+    poppler-utils \
+    imagemagick \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    fonts-noto-cjk \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY shared/py/requirements.txt /app/shared/py/requirements.txt
+COPY apps/api/requirements.txt /app/apps/api/requirements.txt
+RUN pip install --no-cache-dir \
+    -r /app/shared/py/requirements.txt \
+    -r /app/apps/api/requirements.txt
+
+COPY shared/py /app/shared/py
+COPY apps/api /app/apps/api
+
+ENV PYTHONPATH=/app/shared/py
+WORKDIR /app/apps/api
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,33 @@
+# 本地一键起 web+api，连云端 Supabase（不本地起 Postgres）。
+#
+# 用法（在仓库根目录执行；⚠️ 用 -f 指定子目录下的 compose 文件时，Compose
+# 不会自动去仓库根找 .env，必须显式 --env-file 指到根 .env，否则 NEXT_PUBLIC_*
+# 会被 Compose 悄悄置空——实测踩过这个坑）：
+#   docker compose -f docker/docker-compose.yml --env-file .env up --build
+#
+# NEXT_PUBLIC_* 是 web 的构建期变量（写死进浏览器 bundle），来自根 .env；
+# api 的密钥（SUPABASE_SERVICE_ROLE_KEY/ANTHROPIC_API_KEY）走 env_file 在运行时注入。
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    env_file:
+      - ../.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api

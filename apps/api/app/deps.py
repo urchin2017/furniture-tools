@@ -1,0 +1,36 @@
+"""FastAPI 依赖：service_role 客户端单例 + current_user 注入。"""
+from __future__ import annotations
+
+from functools import lru_cache
+
+from fastapi import Depends, Header, HTTPException, status
+from supabase import Client
+
+from app.auth import CurrentUser, fetch_role, verify_token
+from app.config import get_settings  # noqa: F401  (触发 shared/py 加入 sys.path)
+
+from supabase_client import service_client_from_env
+
+
+@lru_cache
+def get_supabase() -> Client:
+    """service_role 客户端（绕过 RLS）。路由层必须显式按 user_id 过滤/写入。"""
+    return service_client_from_env()
+
+
+def get_current_user(
+    authorization: str | None = Header(default=None),
+    supabase: Client = Depends(get_supabase),
+) -> CurrentUser:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="缺少登录凭证")
+    token = authorization.split(" ", 1)[1].strip()
+    user_id, email = verify_token(supabase, token)
+    role = fetch_role(supabase, user_id)
+    return CurrentUser(id=user_id, email=email, role=role)
+
+
+def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return user

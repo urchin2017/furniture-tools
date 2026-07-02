@@ -1,0 +1,16 @@
+# Docker build context 排除项（context = 仓库根，见 docker/Dockerfile.*）
+.git/
+node_modules/
+apps/web/node_modules/
+apps/web/.next/
+.next/
+**/__pycache__/
+**/*.pyc
+.venv/
+venv/
+.pytest_cache/
+shared/py/.pytest_cache/
+.env
+.env.local
+*.log
+.DS_Store

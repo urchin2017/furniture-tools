@@ -43,6 +43,8 @@
 
 **术语表 DB 现状**：**1243 条** —— 日→中 431、英→中 246、中→日 349、中→英 217。`domain=''` 常规，`domain='test'` 为测试数据（现无）。校对时排除的 89 条（存疑12+非术语77）**未入库**，留在 `Furniture System_2026-06-29/术语表反转_待确认/存疑与非术语_待处理.xlsx`（仓库外，未提交）。
 
+**报价生成 skill 版本更正**：`drawing-to-quotation-2026-07-01-v3` **已下架**，现在唯一有效版本是 **`drawing-to-quotation-2026-07-02-v5`**（`~/Dropbox/Cowork/Skill/quote skill/` 下唯一的 .skill 文件）。`CLAUDE.md`、`apps/api/app/modules/README.md`、`shared/py/skills/README.md`、`~/.claude/plans/claude-code-ticklish-thunder.md`（仓库外）都已同步改成 v5，且 `shared/py/skills/README.md` 的脚本清单是**解压 v5 包实际核实过的**（非推测）：四步管线 `extract_scaffold.py`(含光栅页⚠RASTER判定)→ 定外形尺寸(几何或看图协议，看图配合新脚本 `render_pages.py`)→ `fill_quote.py`(无照片时配合新脚本 `crop_drawings.py`)→ `render_check.py`。**v5 相比 v3 新增两个脚本**：`render_pages.py`、`crop_drawings.py`。`supabase/README.md` 里那句提历史数据来源的话没改（陈述既成事实，不是版本指针）。
+
 ## 三、下一步（阶段 0 已全部完成，开始三大模块）
 
 阶段 0（T1~T10）全部做完了。接下来是三大模块（A 报价 / B 图纸 / C 唛头），把各 skill 的机械脚本搬进 `shared/py/skills/`、判断步骤改调 `claude_client`（搬运指引见 `shared/py/skills/README.md` 和 plan 的「路线图」）。每个模块大致要做：
@@ -51,6 +53,8 @@
 2. **实现 `runner.JobHandler`**（`JobContext -> dict`），注册进 `apps/api/app/tasks/runner.HANDLERS[<feature>]`（见二.T10）。
 3. **前端页面**：`apps/web/app/(app)/<module>/` 建 `page.tsx`，调 `POST /api/jobs` 建任务、轮询 `GET /api/jobs/{id}` 拿进度/结果。
 4. **⚠️ Python 依赖缺口**：`shared/py/requirements.txt` 目前只有 `anthropic/supabase/pymupdf/pillow/numpy`，**没有 `weasyprint`/`openpyxl`/`reportlab`/`pypdf`**——用到时自己按需加进去；Dockerfile.api 的系统库（libpango/cairo/CJK字体/LibreOffice/poppler/ImageMagick）已经装好，只差 Python 包，加完包不用改 Dockerfile。
+
+**模块实现顺序：按 A 报价 → B 图纸 → C 唛头做**（用户明确要求，不按复杂度从简到难排）。三个模块的相对复杂度供心里有数（不代表实现顺序）：**A 报价最重**——"定外形尺寸"是纯视觉判断步骤，且这个 skill 自己 v2→v3→v5 反复重写就是因为真实图纸尺寸算错，**第一个模块就啃最难的这块，要预留跟真实图纸对账迭代的余量，别指望一次到位**；B 图纸中等（翻译判断步骤能直接复用 T6 的 glossary/claude_client）；C 唛头最简单（三个脚本全是纯机械脚本，没有 Claude 判断步骤，放最后做）。
 
 ## 四、未解决的坑 / 注意事项
 
@@ -71,4 +75,4 @@
 - **跑前端**：`preview_start` name=`web`（launch.json 在父目录 `.claude/launch.json`，端口 3000）。登录后可用术语表。真实浏览器测试用 claude-in-chrome（`list_connected_browsers` 确认扩展在）。
 - **跑后端测试**：见坑 #6 建 venv，然后 `cd shared/py && <venv>/bin/pytest tests/ -q`（离线 25 项过；网络 7 项需 .env）；`apps/api` 的测试是 `cd apps/api && <venv>/bin/pytest tests/ -q`（24 项，六维度全覆盖，23 项纯离线 + 1 项网络门控需 .env）。
 - **跑整套 Docker（T9 验收过的流程）**：仓库根目录跑 `docker compose -f docker/docker-compose.yml --env-file .env up --build`（**别漏 `--env-file .env`**，见坑 #10）。跑之前如果 `preview_start` 的 web 还占着 3000 端口，先 `preview_stop` 或 `docker compose ... down` 冲突的那个。日常开发用 `preview_start`（有 HMR，更快），Docker 只在要验证"整套能不能从零跑起来"时用。
-- **git 状态**：`git -C <repo> log --oneline -1` 应见 `feat(shared/py): 后端四基础件…`（4deaad5 或更新，apps/api+T9 完成后应该有新提交，看你有没有让我上传）。
+- **git 状态**：`git -C <repo> log --oneline -1` 应见 `docs: 报价生成 skill 引用从 v3 更新为 v5…`（`9dda1db` 或更新）。

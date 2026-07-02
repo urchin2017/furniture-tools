@@ -5,9 +5,20 @@
 
 搬运来源（skill 磁盘路径见 plan 的「路线图」）：
 
-- **报价生成** ← `drawing-to-quotation-2026-07-01-v3`：`measure_dims.py`(几何量取)、
-  `extract_scaffold.py`(文字层分诊+渲染)、`fill_quote.py`(openpyxl 填表)、`render_check.py`(LibreOffice 渲染验证)。
-  「定尺寸」低置信时改调 `claude_client.complete_vision`。日→中术语调 `glossary.load_map("ja","zh")`。
+- **报价生成** ← `drawing-to-quotation-2026-07-02-v5`（原 `-2026-07-01-v3` 已下架；已对照 v5 skill 包实际内容核实，
+  下面是真实脚本清单，非按 v3 推测）。四步管线（顺序不可省）+ 1 个辅助脚本：
+  1. `extract_scaffold.py` —— 文字层分诊 + **光栅页判定**(矢量层无线条+整页大图 → 打 `⚠ RASTER` 警告，
+     强制走看图协议，不静默跳过) + 生成 `products.json` 骨架（含款号缩写`F07，07A`展开、数量解析）。
+  2. **定外形尺寸**（判断步骤，非脚本）：矢量图纸优先用 `measure_dims.py` 的双信号几何量取
+     （尺度一致性 + 跨度×比例尺，双重交叉核对锁定外形，非文本注记）；光栅图纸或几何低置信时走
+     「看图协议」，配合 `render_pages.py`（整页高 DPI 渲染，不裁剪不涂白，可选四象限放大）改调
+     `claude_client.complete_vision` 人工/视觉核对——铁律：文本层 W/D/H 注记只当线索，绝不直接采用，
+     外形以图面「最外侧尺寸链」为准（造作家具含フィラー/按 CH 天井高基准）。
+  3. `fill_quote.py` —— 从 `products.json` 填 Excel 报价模板，非视觉确认的记录加 ⚠ 高亮，日中双语排版规范；
+     无照片时用 `crop_drawings.py`（去文字块+表题栏+白边，统一画布尺寸）从图纸裁产品参考图。
+  4. `render_check.py` —— 转 PDF 再渲染 PNG，供目视验证无溢出/对齐/数据正确（需 LibreOffice）。
+
+  日→中术语调 `glossary.load_map("ja","zh")`。`products.json` 字段结构见 skill 包内 `references/data_schema.md`。
 - **报价对比** ← `excel-quote-compare-2026-03-24`：`generate_report.py`(openpyxl 解析 + weasyprint 出 PDF)，纯脚本。
 - **图纸翻译** ← `drawing-translator-2026-04-21`：`translate_drawings.py`(内嵌 EN_DICT/JP_DICT 换成 `glossary.load_map`)、
   `positioning_utils.py`、`rasterize_overlay.py`；45s bash hack 改成 `tasks/runner.py` 异步 + 进度轮询。

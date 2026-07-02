@@ -4,7 +4,7 @@
 
 | 子目录 | 来源 skill |
 |---|---|
-| `quote/generate` | `drawing-to-quotation-2026-07-01-v3` |
+| `quote/generate` | `drawing-to-quotation-2026-07-02-v5`（原 `-2026-07-01-v3` 已下架） |
 | `quote/compare` | `excel-quote-compare-2026-03-24` |
 | `drawings/translate` | `drawing-translator-2026-04-21` |
 | `drawings/revision_diff` | `drawing-revision-diff-remark-2026-06-01`（单品）/ `zhengtao-tuzhi-gaiban-chayi-2026-06-02`（整套） |

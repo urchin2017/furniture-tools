@@ -10,7 +10,7 @@
 - **`shared/`**：`ts` 给前端、`py` 给后端；同一逻辑两份实现，都指向同一张 Supabase 表。
 
 ## 功能模块（三大块，功能实现留给各自 session）
-- **模块 A｜报价**：报价单生成（skill `drawing-to-quotation-2026-07-01-v3`）、报价单对比（`excel-quote-compare-2026-03-24`）
+- **模块 A｜报价**：报价单生成（skill `drawing-to-quotation-2026-07-02-v5`，原 `-2026-07-01-v3` 已下架）、报价单对比（`excel-quote-compare-2026-03-24`）
 - **模块 B｜图纸**：图纸翻译（`drawing-translator-2026-04-21`）、改版差异（单品 `drawing-revision-diff-remark-2026-06-01` / 整套 `zhengtao-tuzhi-gaiban-chayi-2026-06-02`）
 - **模块 C｜唛头**：唛头生成（`product-list-to-shipping-marks-2026-04-23`，先占位）
 

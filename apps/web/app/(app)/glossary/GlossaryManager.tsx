@@ -36,13 +36,25 @@ export default function GlossaryManager() {
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
-    const { data, error } = await supabase
-      .from("glossary")
-      .select("*")
-      .order("source_term", { ascending: true })
-      .limit(100000);
-    if (error) setErr(error.message);
-    else setEntries((data as GlossaryEntry[]) ?? []);
+    // Supabase(PostgREST) 单次最多返回 1000 行，故分页取全
+    const pageSize = 1000;
+    const acc: GlossaryEntry[] = [];
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from("glossary")
+        .select("*")
+        .order("source_term", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) {
+        setErr(error.message);
+        break;
+      }
+      const batch = (data as GlossaryEntry[]) ?? [];
+      acc.push(...batch);
+      if (batch.length < pageSize) break;
+    }
+    setEntries(acc);
     setLoading(false);
   }, []);
 

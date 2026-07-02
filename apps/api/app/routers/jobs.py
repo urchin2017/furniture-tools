@@ -1,18 +1,21 @@
-"""jobs 表基础 CRUD 骨架（创建/查询）。
+"""jobs 表 CRUD + 异步执行触发。
 
-异步执行 + 进度写入见 T10 的 `tasks/runner.py`（尚未实现）：本骨架里创建的任务会
-停在 `status='queued'`，等 T10 接上真正的后台执行。service_role 客户端绕过 RLS，
-所以这里必须显式按 user_id 过滤（admin 除外）。
+创建任务后用 `BackgroundTasks` 扔给 `tasks/runner.run_job` 在后台跑，前端轮询
+`GET /api/jobs/{id}` 看 status/progress。具体 feature 的业务逻辑由各模块
+session 注册进 `runner.HANDLERS`；没注册的 feature 会在后台任务里直接标
+`status='error'`，不会静默卡在 `queued`。service_role 客户端绕过 RLS，所以
+这里必须显式按 user_id 过滤（admin 除外）。
 """
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 from supabase import Client
 
 from app.deps import CurrentUser, get_current_user, get_supabase
+from app.tasks.runner import run_job
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -44,18 +47,22 @@ class JobOut(BaseModel):
 @router.post("", response_model=JobOut, status_code=status.HTTP_201_CREATED)
 def create_job(
     body: JobCreate,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ) -> dict[str, Any]:
     if body.feature not in _FEATURES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"未知 feature：{body.feature}")
+    params = body.params or {}
     rows = (
         supabase.table("jobs")
-        .insert({"user_id": user.id, "feature": body.feature, "params": body.params or {}})
+        .insert({"user_id": user.id, "feature": body.feature, "params": params})
         .execute()
         .data
     )
-    return rows[0]
+    job = rows[0]
+    background_tasks.add_task(run_job, supabase, job["id"], body.feature, params)
+    return job
 
 
 @router.get("", response_model=list[JobOut])

@@ -1,0 +1,15 @@
+[
+  "GET /api/jobs",
+  "GET /api/jobs/{job_id}",
+  "GET /docs",
+  "GET /docs/oauth2-redirect",
+  "GET /health",
+  "GET /openapi.json",
+  "GET /redoc",
+  "HEAD /docs",
+  "HEAD /docs/oauth2-redirect",
+  "HEAD /openapi.json",
+  "HEAD /redoc",
+  "POST /api/glossary/lookup-batch",
+  "POST /api/jobs"
+]

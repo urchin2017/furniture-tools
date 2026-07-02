@@ -1,0 +1,12 @@
+[
+  {
+    "page_index": 0,
+    "kind": "vector_text",
+    "has_vector_segments": true
+  },
+  {
+    "page_index": 1,
+    "kind": "scan_raster",
+    "has_vector_segments": false
+  }
+]

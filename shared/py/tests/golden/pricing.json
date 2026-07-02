@@ -1,0 +1,45 @@
+[
+  {
+    "tokens": {},
+    "cost_usd": 0.0
+  },
+  {
+    "tokens": {
+      "input_tokens": 1000000
+    },
+    "cost_usd": 5.0
+  },
+  {
+    "tokens": {
+      "output_tokens": 1000000
+    },
+    "cost_usd": 25.0
+  },
+  {
+    "tokens": {
+      "input_tokens": 1000000,
+      "output_tokens": 1000000
+    },
+    "cost_usd": 30.0
+  },
+  {
+    "tokens": {
+      "cache_read_input_tokens": 1000000
+    },
+    "cost_usd": 0.5
+  },
+  {
+    "tokens": {
+      "cache_creation_input_tokens": 1000000
+    },
+    "cost_usd": 6.25
+  },
+  {
+    "tokens": {
+      "input_tokens": 3571,
+      "output_tokens": 727,
+      "cache_read_input_tokens": 6656
+    },
+    "cost_usd": 0.039358
+  }
+]

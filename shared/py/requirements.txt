@@ -1,0 +1,10 @@
+# shared/py 后端共享件依赖。后端 Docker 镜像(python:3.11)安装。
+# 使用时把 shared/py 加入 PYTHONPATH（Docker: ENV PYTHONPATH=/app/shared/py）。
+anthropic>=0.40
+supabase>=2.9
+pymupdf>=1.24
+pillow>=10.0
+numpy>=1.26
+
+# 仅测试用
+pytest>=8.0

@@ -2,9 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Hint from "@/components/Hint";
 
 const supabase = createClient();
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+/** 千分位格式化 token 数；缺失/未知显示 —。 */
+function fmtTok(n?: number): string {
+  return typeof n === "number" ? n.toLocaleString("en-US") : "—";
+}
 
 /** fetch + 网络错误重试（本机网络抖动）；连不上时给出可操作的中文报错。 */
 async function fetchRetry(url: string, init: RequestInit, tries = 3): Promise<Response> {
@@ -49,6 +55,12 @@ type JobResult = {
     unconfirmed: string[];
     missing: string[];
     cost_usd: number;
+    model?: string;
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+    vision_calls?: number;
     warnings: string[];
     products: ProductRow[];
   };
@@ -218,38 +230,53 @@ export default function QuoteGenerate() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <h1 className="text-xl font-semibold text-ink">报价单生成</h1>
-      <p className="text-sm text-muted">
-        上传 PDF 技术图纸 + Excel 报价模板 → 自动提取产品、AI 看图定「外形/全体寸法」、填表、渲染验证。
-        尺寸拿不准的行会标 ⚠ 淡黄高亮，务必人工复核后再发客户。
-      </p>
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-semibold text-ink">报价单生成</h1>
+        <Hint text="上传 PDF 技术图纸 + Excel 报价模板 → 自动提取产品、AI 看图定「外形/全体寸法」、填表、渲染验证。尺寸拿不准的行会标 ⚠ 淡黄高亮，务必人工复核后再发客户。" />
+      </div>
 
       <form onSubmit={onSubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-ink">图纸 PDF（必填）</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label
+            className={`flex w-full items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm ${
+              busy ? "pointer-events-none opacity-50" : "cursor-pointer"
+            }`}
+          >
+            <span className="whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-ink">
+              选择图纸 PDF
+            </span>
+            <span className="truncate text-muted">{pdfFile?.name ?? ""}</span>
             <input
               type="file"
               accept=".pdf,application/pdf"
               disabled={busy}
               onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-              className="mt-1 block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-bg file:px-3 file:py-1.5 file:text-ink"
+              className="hidden"
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-ink">报价模板 Excel（必填）</span>
+          <label
+            className={`flex w-full items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm ${
+              busy ? "pointer-events-none opacity-50" : "cursor-pointer"
+            }`}
+          >
+            <span className="whitespace-nowrap rounded-md border border-border bg-surface px-2.5 py-1 text-ink">
+              选择模板 Excel
+            </span>
+            <span className="truncate text-muted">{templateFile?.name ?? ""}</span>
             <input
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               disabled={busy}
               onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
-              className="mt-1 block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-bg file:px-3 file:py-1.5 file:text-ink"
+              className="hidden"
             />
           </label>
         </div>
         <div className="grid gap-4 sm:grid-cols-4">
           <label className="block text-sm sm:col-span-2">
-            <span className="text-ink">项目名（写入模板 C11）</span>
+            <span className="inline-flex items-center gap-1 text-ink">
+              项目名 <Hint text="写入报价模板的 C11 单元格" />
+            </span>
             <input
               type="text"
               value={project}
@@ -260,7 +287,9 @@ export default function QuoteGenerate() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-ink">跳过页（封面等）</span>
+            <span className="inline-flex items-center gap-1 text-ink">
+              跳过页 <Hint text="封面等无品番的页码，逗号分隔（默认 1）" />
+            </span>
             <input
               type="text"
               value={skipPages}
@@ -293,14 +322,15 @@ export default function QuoteGenerate() {
             </label>
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm text-ink">
+        <label className="inline-flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             checked={requireVisual}
             disabled={busy}
             onChange={(e) => setRequireVisual(e.target.checked)}
           />
-          终版闸门：有未确认/缺尺寸项时拒绝出文件（不勾 = 允许出带 ⚠ 的草稿版）
+          终版闸门
+          <Hint text="勾选后：有未确认 / 缺尺寸的项时拒绝出文件。不勾 = 允许出带 ⚠ 的草稿版。" />
         </label>
         <button
           type="submit"
@@ -341,10 +371,42 @@ export default function QuoteGenerate() {
                 下载 {xlsxFile.display_name || xlsxFile.name}
               </a>
             )}
-            <div className="text-xs text-muted">
-              AI 成本约 US${result.summary.cost_usd}
-              {result.summary.raster_pages.length > 0 &&
-                ` · 光栅图纸页：${result.summary.raster_pages.join(", ")}（几何测量不可用，已走看图协议）`}
+            <div className="border-t border-border pt-3 text-xs">
+              <div className="font-medium text-ink mb-1.5">
+                AI 成本明细 <span className="text-muted">（下载前先过目）</span>
+              </div>
+              <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-muted">
+                <dt>模型</dt>
+                <dd className="text-ink">{result.summary.model || "—"}</dd>
+                {result.summary.vision_calls != null && (
+                  <>
+                    <dt>看图调用次数</dt>
+                    <dd className="text-ink">{result.summary.vision_calls} 次（每页一次）</dd>
+                  </>
+                )}
+                <dt>输入 tokens</dt>
+                <dd className="text-ink">{fmtTok(result.summary.input_tokens)}</dd>
+                <dt>输出 tokens</dt>
+                <dd className="text-ink">{fmtTok(result.summary.output_tokens)}</dd>
+                {(result.summary.cache_read_input_tokens ?? 0) +
+                  (result.summary.cache_creation_input_tokens ?? 0) >
+                  0 && (
+                  <>
+                    <dt>缓存 tokens（读 / 写）</dt>
+                    <dd className="text-ink">
+                      {fmtTok(result.summary.cache_read_input_tokens)} /{" "}
+                      {fmtTok(result.summary.cache_creation_input_tokens)}
+                    </dd>
+                  </>
+                )}
+                <dt className="font-medium text-ink">合计成本</dt>
+                <dd className="font-medium text-ink">US${result.summary.cost_usd}</dd>
+              </dl>
+              {result.summary.raster_pages.length > 0 && (
+                <div className="text-muted mt-2">
+                  光栅图纸页：{result.summary.raster_pages.join(", ")}（几何测量不可用，已走看图协议）
+                </div>
+              )}
             </div>
             {(result.summary.unconfirmed.length > 0 || result.summary.missing.length > 0) && (
               <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">

@@ -19,6 +19,20 @@ def test_cost_usd_combinations():
     assert abs(Usage(cache_creation_input_tokens=1_000_000).cost_usd() - 6.25) < 1e-6
 
 
+def test_cost_usd_follows_model():
+    """计价跟随实际模型，不再写死 Opus 价；未知/空模型回退默认（Opus，不低估）。"""
+    toks = dict(input_tokens=1_000_000, output_tokens=1_000_000)
+    opus = Usage(**toks, model="claude-opus-4-8").cost_usd()
+    assert opus == 30.0  # 5 + 25
+    assert Usage(**toks, model="claude-sonnet-5").cost_usd() == 18.0  # 3 + 15 = 0.6x Opus
+    assert Usage(**toks, model="claude-haiku-4-5").cost_usd() == 6.0  # 1 + 5
+    # 带 -日期 后缀也能前缀匹配
+    assert Usage(**toks, model="claude-sonnet-4-5-20250929").cost_usd() == 18.0
+    # 未知/空模型 → 回退默认 Opus 价
+    assert Usage(**toks, model="").cost_usd() == opus
+    assert Usage(**toks, model="claude-brand-new-9").cost_usd() == opus
+
+
 def test_usage_from_response_missing_fields():
     class U:  # 只有部分字段（模仿 SDK usage 对象缺 cache 字段）
         input_tokens = 10
@@ -157,4 +171,5 @@ def test_integration_complete_ping():
         pytest.skip(f"Anthropic API 不可用: {e}")
     assert "pong" in r.text.lower()
     assert r.usage.cost_usd() > 0
-    assert r.model.startswith("claude-opus-4-8")
+    # 断言响应模型跟随配置（CLAUDE_MODEL），不写死具体版本——换模型时这条不该失败。
+    assert r.model.startswith(c._model)

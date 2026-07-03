@@ -150,6 +150,11 @@ def run(ctx) -> dict[str, Any]:
         doc = fitz.open(pdf_local)
         pages = sorted({p["page"] for p in products})
         cost_usd = 0.0
+        in_tok = 0
+        out_tok = 0
+        cache_read_tok = 0
+        cache_write_tok = 0
+        model = ""
         merged_all: list[dict[str, Any]] = []
         vision_dir = os.path.join(workdir, "vision")
         for i, pageno in enumerate(pages):
@@ -162,6 +167,11 @@ def run(ctx) -> dict[str, Any]:
                 images_png=images, image_legend=legend, glossary_lines=gl_lines,
             )
             cost_usd += decision.cost_usd
+            in_tok += decision.input_tokens
+            out_tok += decision.output_tokens
+            cache_read_tok += decision.cache_read_input_tokens
+            cache_write_tok += decision.cache_creation_input_tokens
+            model = decision.model or model
             warnings.extend(decision.warnings)
             merged_all.extend(dims.merge_page_decision(page_records, decision))
             ctx.report_progress(15 + int(60 * (i + 1) / len(pages)))
@@ -209,6 +219,12 @@ def run(ctx) -> dict[str, Any]:
                 "unconfirmed": fill_summary["unconfirmed"],
                 "missing": fill_summary["missing"],
                 "cost_usd": round(cost_usd, 4),
+                "model": model,
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "cache_read_input_tokens": cache_read_tok,
+                "cache_creation_input_tokens": cache_write_tok,
+                "vision_calls": len(pages),
                 "warnings": warnings,
                 "products": [
                     {k: p.get(k) for k in ("row_code", "page", "W", "D", "H", "qty", "dim_source")}

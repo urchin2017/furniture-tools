@@ -157,4 +157,5 @@ def test_integration_complete_ping():
         pytest.skip(f"Anthropic API 不可用: {e}")
     assert "pong" in r.text.lower()
     assert r.usage.cost_usd() > 0
-    assert r.model.startswith("claude-opus-4-8")
+    # 断言响应模型跟随配置（CLAUDE_MODEL），不写死具体版本——换模型时这条不该失败。
+    assert r.model.startswith(c._model)

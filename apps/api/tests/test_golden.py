@@ -24,13 +24,21 @@ def _save(name, obj):
     (GOLDEN / name).write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+_HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
+
+
 def test_route_surface_golden():
     from app.main import app
 
+    # 用 OpenAPI 契约（method + path）做快照，而不是 app.routes 里的框架内部对象——
+    # 后者的结构随 FastAPI/Starlette 版本变化（新版 include_router 用惰性 _IncludedRouter
+    # 包装，扁平遍历取不到子路由）。OpenAPI paths 是稳定的公开契约，也正是我们真正想锁的东西。
+    schema = app.openapi()
     routes = sorted(
-        f"{method} {route.path}"
-        for route in app.routes
-        for method in (getattr(route, "methods", None) or [])
+        f"{method.upper()} {path}"
+        for path, ops in schema.get("paths", {}).items()
+        for method in ops
+        if method.lower() in _HTTP_METHODS
     )
     if _UPDATE:
         _save("routes.json", routes)

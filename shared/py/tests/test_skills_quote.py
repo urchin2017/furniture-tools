@@ -5,8 +5,12 @@
 """
 from __future__ import annotations
 
+import functools
 import json
+import os
 import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 import fitz
@@ -138,7 +142,29 @@ def test_empty_products_json_raises(drawing_pdf, template_xlsx, tmp_path):
 
 # ---------- 端到端渲染（需 LibreOffice，本机没有则跳过；Docker 里会跑）----------
 
-@pytest.mark.skipif(shutil.which("soffice") is None, reason="本机无 LibreOffice(soffice)")
+
+@functools.lru_cache(maxsize=1)
+def _soffice_works() -> bool:
+    """光有 soffice 可执行文件还不够——某些容器里它装了却转不了任何文件
+    （报 "source file could not be loaded"，且退出码仍是 0）。真跑一次极小转换来判活，
+    转不出 PDF 就跳过端到端渲染测试。"""
+    if shutil.which("soffice") is None:
+        return False
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "probe.csv")
+            Path(src).write_text("a,b\n1,2\n", encoding="utf-8")
+            subprocess.run(
+                ["soffice", "--headless", "--convert-to", "pdf", "--outdir", d, src],
+                check=True, timeout=60,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return os.path.exists(os.path.join(d, "probe.pdf"))
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(not _soffice_works(), reason="LibreOffice(soffice) 不可用或无法转换文件")
 def test_render_xlsx_produces_pngs(drawing_pdf, template_xlsx, tmp_path):
     out_json = tmp_path / "products.json"
     payload = build_scaffold(drawing_pdf, str(out_json), skip_pages=[1])

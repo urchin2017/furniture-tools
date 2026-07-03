@@ -17,9 +17,13 @@ def test_invalid_bearer_token_rejected_by_real_supabase_auth():
     from app.config import get_settings  # 顺带把 shared/py 接上 sys.path
 
     try:
-        get_settings()
+        settings = get_settings()
     except Exception as e:
         pytest.skip(f"缺少配置: {e}")
+
+    # 没有真实 Supabase 凭据（云端/CI 用 conftest 的占位值）时跳过——这条链路要打真实网络。
+    if "placeholder" in settings.shared.supabase_url:
+        pytest.skip("无真实 Supabase 配置（占位值），跳过真实网络端到端")
 
     from fastapi.testclient import TestClient
 
@@ -32,4 +36,8 @@ def test_invalid_bearer_token_rejected_by_real_supabase_auth():
         )
     except Exception as e:
         pytest.skip(f"Supabase 网络不可用: {e}")
+    # 后端够不到 Supabase Auth（重试耗尽）会返回 503——等同"网络不可用"，跳过而非失败。
+    # 例如云端会话的出站策略挡掉 *.supabase.co 时就是这种情况。
+    if resp.status_code == 503:
+        pytest.skip("后端无法连通 Supabase Auth（503），跳过真实网络端到端")
     assert resp.status_code == 401

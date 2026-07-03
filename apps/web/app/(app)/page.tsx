@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Hint from "@/components/Hint";
 
 const CARDS = [
   {
@@ -30,34 +31,30 @@ const CARDS = [
 export default function Dashboard() {
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex items-center gap-2">
         <h1 className="text-xl font-semibold text-ink">工作台</h1>
-        <p className="text-sm text-muted mt-1">
-          阶段 0 · 地基已就绪。术语表可用，其余模块开发中。
-        </p>
+        <Hint text="阶段 0 · 地基已就绪。术语表可用，其余模块开发中。" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {CARDS.map((c) => (
-          <Link
-            key={c.href}
-            href={c.href}
-            className="bg-surface border border-border rounded-xl p-5 hover:border-brand transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-ink">{c.title}</span>
-              <span
-                className={`text-xs rounded px-1.5 py-0.5 ${
-                  c.ready
-                    ? "bg-green-100 text-green-700"
-                    : "bg-bg text-muted"
-                }`}
-              >
-                {c.ready ? "可用" : "开发中"}
-              </span>
-            </div>
-            <p className="text-sm text-muted mt-2">{c.desc}</p>
-          </Link>
+          <Hint key={c.href} text={c.desc} className="block">
+            <Link
+              href={c.href}
+              className="block w-full bg-surface border border-border rounded-xl p-5 hover:border-brand transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink">{c.title}</span>
+                <span
+                  className={`text-xs rounded px-1.5 py-0.5 ${
+                    c.ready ? "bg-green-100 text-green-700" : "bg-bg text-muted"
+                  }`}
+                >
+                  {c.ready ? "可用" : "开发中"}
+                </span>
+              </div>
+            </Link>
+          </Hint>
         ))}
       </div>
     </div>

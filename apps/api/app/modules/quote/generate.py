@@ -152,6 +152,8 @@ def run(ctx) -> dict[str, Any]:
         cost_usd = 0.0
         in_tok = 0
         out_tok = 0
+        cache_read_tok = 0
+        cache_write_tok = 0
         model = ""
         merged_all: list[dict[str, Any]] = []
         vision_dir = os.path.join(workdir, "vision")
@@ -167,6 +169,8 @@ def run(ctx) -> dict[str, Any]:
             cost_usd += decision.cost_usd
             in_tok += decision.input_tokens
             out_tok += decision.output_tokens
+            cache_read_tok += decision.cache_read_input_tokens
+            cache_write_tok += decision.cache_creation_input_tokens
             model = decision.model or model
             warnings.extend(decision.warnings)
             merged_all.extend(dims.merge_page_decision(page_records, decision))
@@ -218,6 +222,9 @@ def run(ctx) -> dict[str, Any]:
                 "model": model,
                 "input_tokens": in_tok,
                 "output_tokens": out_tok,
+                "cache_read_input_tokens": cache_read_tok,
+                "cache_creation_input_tokens": cache_write_tok,
+                "vision_calls": len(pages),
                 "warnings": warnings,
                 "products": [
                     {k: p.get(k) for k in ("row_code", "page", "W", "D", "H", "qty", "dim_source")}

@@ -112,6 +112,8 @@ class PageDecision:
     warnings: list[str] = field(default_factory=list)
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
     model: str = ""
 
 
@@ -146,6 +148,8 @@ def decide_page(
         warnings=warnings,
         input_tokens=result.usage.input_tokens,
         output_tokens=result.usage.output_tokens,
+        cache_read_input_tokens=result.usage.cache_read_input_tokens,
+        cache_creation_input_tokens=result.usage.cache_creation_input_tokens,
         model=result.model,
     )
 

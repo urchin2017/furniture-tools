@@ -12,5 +12,8 @@ venv/
 shared/py/.pytest_cache/
 .env
 .env.local
+**/.env
+**/.env.local
+**/.env.*.local
 *.log
 .DS_Store

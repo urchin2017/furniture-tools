@@ -28,6 +28,10 @@ from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
 from openpyxl.drawing.xdr import XDRPositiveSize2D
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils.units import pixels_to_EMU
+from openpyxl.utils import get_column_letter
+from openpyxl.formula.translate import Translator
+from copy import copy as _copy
+import re as _re
 import unicodedata
 
 # 术语订正：メラミン化粧板（フォーミカ）= 防火板(HPL)，非直译三聚氰胺板
@@ -168,10 +172,41 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
     wb = load_workbook(template); ws = wb.active
     if project:
         ws['C11'] = project
-    # 解除数据区残留合并
+
+    # ===== 行数自适应（任务1）：写数据前先捕获“页脚块”（合計〜備考），之后整块搬到数据末尾 =====
+    # --last-row 语义 = 数据预留段末行 = 合計行的上一行；据此定位页脚起点。
+    FOOTER_START = last_row + 1          # 页脚第一行（合計行）
+    def _last_content_row(top, maxscan=250):
+        last = top; empty = 0; r = top
+        while r < top + maxscan:
+            has = any(ws.cell(r, c).value not in (None, '') for c in range(1, 15))
+            if has:
+                last = r; empty = 0
+            else:
+                empty += 1
+                if empty > 15:
+                    break
+            r += 1
+        return last
+    FOOTER_END = _last_content_row(FOOTER_START)
+    _footer_cells = []
+    for rr in range(FOOTER_START, FOOTER_END + 1):
+        for cc in range(1, 15):
+            cell = ws.cell(rr, cc)
+            _footer_cells.append((rr - FOOTER_START, cc, cell.value,
+                _copy(cell.font), _copy(cell.fill), _copy(cell.border),
+                _copy(cell.alignment), cell.number_format))
+    _footer_heights = {rr - FOOTER_START: ws.row_dimensions[rr].height
+                       for rr in range(FOOTER_START, FOOTER_END + 1)}
+    _footer_merges = []
     for mr in list(ws.merged_cells.ranges):
-        _, mnr, _, mxr = mr.bounds
-        if mnr >= start_row and mxr <= last_row:
+        c1, r1, c2, r2 = mr.bounds
+        if r1 >= FOOTER_START and r2 <= FOOTER_END:
+            _footer_merges.append((r1 - FOOTER_START, c1, r2 - FOOTER_START, c2))
+    # 解除“数据起始行往下”的全部合并（数据扩展区 + 旧页脚），避免写入/搬迁报错
+    for mr in list(ws.merged_cells.ranges):
+        c1, r1, c2, r2 = mr.bounds
+        if r1 >= start_row:
             ws.unmerge_cells(str(mr))
 
     thin = Side(style='thin', color='808080'); BORDER = Border(thin, thin, thin, thin)
@@ -236,10 +271,56 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
                 ext=XDRPositiveSize2D(pixels_to_EMU(IMG_W), pixels_to_EMU(IMG_H)))
             ws.add_image(im)
 
-    # 清空多余预留行的残留公式
-    for r in range(start_row + len(products), last_row + 1):
-        for col in 'ABCEFGHIJKLMN':
-            ws[f'{col}{r}'] = None
+    # ===== 行数自适应（任务1）：数据 N 行 → 1 空白行 → 页脚整块搬到其后 =====
+    N = len(products)
+    data_end = start_row + N - 1
+    blank_row = data_end + 1
+    new_footer_start = blank_row + 1
+    shift = new_footer_start - FOOTER_START
+    new_footer_end = FOOTER_END + shift
+    clear_to = max(FOOTER_END, new_footer_end)
+    # 清掉“空白行〜clear_to”（值+样式+行高），空白行保持真空白
+    _blank_font = Font(name=FONT); _no_fill = PatternFill(fill_type=None)
+    _no_border = Border(); _no_align = Alignment()
+    for rr in range(blank_row, clear_to + 1):
+        for cc in range(1, 15):
+            cell = ws.cell(rr, cc)
+            cell.value = None; cell.font = _blank_font; cell.fill = _no_fill
+            cell.border = _no_border; cell.alignment = _no_align; cell.number_format = 'General'
+        ws.row_dimensions[rr].height = None
+    # 把页脚块盖章到新位置（公式随之修正）
+    for (rel, cc, val, fnt, fil, brd, aln, nf) in _footer_cells:
+        nr = new_footer_start + rel
+        cell = ws.cell(nr, cc)
+        if isinstance(val, str) and val.startswith('='):
+            if rel == 0:
+                # 合計行：把“从数据起始行开始的 SUM 范围”末尾改成真实数据末行
+                val = _re.sub(rf'([A-Z]+){start_row}:([A-Z]+)\d+',
+                              lambda m: f"{m.group(1)}{start_row}:{m.group(2)}{data_end}", val)
+            else:
+                # 其余页脚行：按行位移平移内部引用（船運/契约等）
+                origin = f"{get_column_letter(cc)}{FOOTER_START + rel}"
+                val = Translator(val, origin=origin).translate_formula(f"{get_column_letter(cc)}{nr}")
+        cell.value = val
+        cell.font = _copy(fnt); cell.fill = _copy(fil); cell.border = _copy(brd)
+        cell.alignment = _copy(aln); cell.number_format = nf
+        if _footer_heights.get(rel) is not None:
+            ws.row_dimensions[nr].height = _footer_heights[rel]
+    # 页脚合并单元格在新位置重建
+    for (r1, c1, r2, c2) in _footer_merges:
+        ws.merge_cells(start_row=new_footer_start + r1, start_column=c1,
+                       end_row=new_footer_start + r2, end_column=c2)
+    # 顶部引用页脚的公式（如 C9=合計）随之修正
+    for rr in range(1, start_row):
+        for cc in range(1, 20):
+            cell = ws.cell(rr, cc); v = cell.value
+            if isinstance(v, str) and v.startswith('='):
+                def _rep(m):
+                    col, row = m.group(1), int(m.group(2))
+                    if FOOTER_START <= row <= FOOTER_END:
+                        return f"{col}{row + shift}"
+                    return m.group(0)
+                cell.value = _re.sub(r'([A-Z]+)(\d+)', _rep, v)
 
     wb.save(out_xlsx)
     print('已保存:', out_xlsx, ' 产品数(=行数):', len(products), ' 图片数:', len(ws._images))

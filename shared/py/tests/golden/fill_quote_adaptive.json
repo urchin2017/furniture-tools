@@ -1,0 +1,49 @@
+{
+  "n": 6,
+  "start_row": 18,
+  "last_row": 25,
+  "data_end": 23,
+  "blank_row": 24,
+  "new_footer_start": 25,
+  "top_C9": "=K25",
+  "footer": [
+    {
+      "rel": 0,
+      "A": "合計",
+      "K": "=SUM(K18:K23)",
+      "height": 22.0,
+      "bold": true,
+      "num_fmt": "0.00"
+    },
+    {
+      "rel": 1,
+      "A": "船運費",
+      "K": "=K25*0.05",
+      "height": 18.0,
+      "bold": false,
+      "num_fmt": "General"
+    },
+    {
+      "rel": 2,
+      "A": "契約金額",
+      "K": "=K25+K26",
+      "height": 18.0,
+      "bold": false,
+      "num_fmt": "General"
+    },
+    {
+      "rel": 3,
+      "A": "備考：数量以実測を優先",
+      "K": null,
+      "height": 40.0,
+      "bold": false,
+      "num_fmt": "General"
+    }
+  ],
+  "footer_merges": [
+    "A25:J25",
+    "A28:N28"
+  ],
+  "blank_row_empty": true,
+  "old_footer_cleared": false
+}

@@ -45,6 +45,7 @@ type ProductRow = {
   H: number | null;
   qty: number | null;
   dim_source: string;
+  confirm_dims?: string[];
 };
 type JobResult = {
   files: JobFile[];
@@ -446,9 +447,19 @@ export default function QuoteGenerate() {
                       {p.row_code || "(空)"}
                     </td>
                     <td className="py-1.5 pr-3">{p.page}</td>
-                    <td className="py-1.5 pr-3">{p.W ?? "—"}</td>
-                    <td className="py-1.5 pr-3">{p.D ?? "—"}</td>
-                    <td className="py-1.5 pr-3">{p.H ?? "—"}</td>
+                    {(["W", "D", "H"] as const).map((dim) => (
+                      <td
+                        key={dim}
+                        className="py-1.5 pr-3"
+                        title={p.confirm_dims?.includes(dim) ? "待人工复核" : undefined}
+                      >
+                        {p.confirm_dims?.includes(dim) ? (
+                          <span className="rounded bg-amber-100 px-1 text-amber-900">{p[dim] ?? "—"}</span>
+                        ) : (
+                          (p[dim] ?? "—")
+                        )}
+                      </td>
+                    ))}
                     <td className="py-1.5 pr-3">{p.qty ?? "—"}</td>
                     <td className="py-1.5">{p.dim_source}</td>
                   </tr>

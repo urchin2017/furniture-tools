@@ -227,7 +227,7 @@ def run(ctx) -> dict[str, Any]:
                 "vision_calls": len(pages),
                 "warnings": warnings,
                 "products": [
-                    {k: p.get(k) for k in ("row_code", "page", "W", "D", "H", "qty", "dim_source")}
+                    {k: p.get(k) for k in ("row_code", "page", "W", "D", "H", "qty", "dim_source", "confirm_dims")}
                     for p in products
                 ],
             },

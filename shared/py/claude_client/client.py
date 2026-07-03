@@ -14,11 +14,34 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 
-# Claude Opus 4.8 定价（USD / 1M tokens）
+# 默认/Opus 4.8 定价（USD / 1M tokens）；未知模型回退到这组（偏保守，不低估）。
+# _IN_PER_M / _OUT_PER_M 保留为默认单价（回归测试锁定）。
 _IN_PER_M = 5.0
 _OUT_PER_M = 25.0
-_CACHE_READ_PER_M = 0.5  # ~0.1x input
+_CACHE_READ_PER_M = 0.5  # ~0.1x input（历史常量；实际按输入价 0.1x 派生）
 _CACHE_WRITE_PER_M = 6.25  # ~1.25x input（5m TTL）
+
+# 各模型 (输入, 输出) 单价（USD / 1M tokens）。缓存读=0.1×输入、写=1.25×输入 由此派生。
+# 引入期优惠（如 Sonnet 5 $2/$10 至 2026-08-31）不入表，按标准价估算（偏保守）。
+_MODEL_PRICES: dict[str, tuple[float, float]] = {
+    "claude-fable-5": (10.0, 50.0),
+    "claude-opus-4-8": (5.0, 25.0),
+    "claude-opus-4-7": (5.0, 25.0),
+    "claude-opus-4-6": (5.0, 25.0),
+    "claude-opus-4-5": (5.0, 25.0),
+    "claude-sonnet-5": (3.0, 15.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-sonnet-4-5": (3.0, 15.0),
+    "claude-haiku-4-5": (1.0, 5.0),
+}
+
+
+def _rates_for(model: str) -> tuple[float, float]:
+    """按模型 id 前缀查 (输入, 输出) 单价（容忍 -日期 后缀）；未知模型回退默认（Opus）价，不低估。"""
+    for prefix, rates in _MODEL_PRICES.items():
+        if model.startswith(prefix):
+            return rates
+    return (_IN_PER_M, _OUT_PER_M)
 
 
 @dataclass
@@ -27,18 +50,20 @@ class Usage:
     output_tokens: int = 0
     cache_read_input_tokens: int = 0
     cache_creation_input_tokens: int = 0
+    model: str = ""  # 计价按此模型；空 → 回退默认（Opus）价
 
     def cost_usd(self) -> float:
+        in_m, out_m = _rates_for(self.model)
         return round(
-            self.input_tokens / 1e6 * _IN_PER_M
-            + self.output_tokens / 1e6 * _OUT_PER_M
-            + self.cache_read_input_tokens / 1e6 * _CACHE_READ_PER_M
-            + self.cache_creation_input_tokens / 1e6 * _CACHE_WRITE_PER_M,
+            self.input_tokens / 1e6 * in_m
+            + self.output_tokens / 1e6 * out_m
+            + self.cache_read_input_tokens / 1e6 * (in_m * 0.1)
+            + self.cache_creation_input_tokens / 1e6 * (in_m * 1.25),
             6,
         )
 
     @classmethod
-    def from_response(cls, u) -> "Usage":
+    def from_response(cls, u, model: str = "") -> "Usage":
         def g(name: str) -> int:
             return int(getattr(u, name, 0) or 0)
 
@@ -47,6 +72,7 @@ class Usage:
             output_tokens=g("output_tokens"),
             cache_read_input_tokens=g("cache_read_input_tokens"),
             cache_creation_input_tokens=g("cache_creation_input_tokens"),
+            model=model or "",
         )
 
 
@@ -76,7 +102,7 @@ class ClaudeClient:
     def _result(self, message) -> LLMResult:
         return LLMResult(
             text=self._text_of(message),
-            usage=Usage.from_response(message.usage),
+            usage=Usage.from_response(message.usage, message.model),
             stop_reason=message.stop_reason or "",
             model=message.model,
         )

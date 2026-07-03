@@ -110,6 +110,9 @@ class PageDecision:
     products: list[dict[str, Any]]
     cost_usd: float
     warnings: list[str] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    model: str = ""
 
 
 def decide_page(
@@ -137,7 +140,14 @@ def decide_page(
         for p in products
         if p["dim_source"] == "PENDING"
     ]
-    return PageDecision(products=products, cost_usd=result.usage.cost_usd(), warnings=warnings)
+    return PageDecision(
+        products=products,
+        cost_usd=result.usage.cost_usd(),
+        warnings=warnings,
+        input_tokens=result.usage.input_tokens,
+        output_tokens=result.usage.output_tokens,
+        model=result.model,
+    )
 
 
 def merge_page_decision(

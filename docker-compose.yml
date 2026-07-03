@@ -1,0 +1,24 @@
+# 本地一键启动：docker compose up --build
+# 前端 http://localhost:3000 、后端 http://localhost:8000
+# 数据仍连 .env 里的 Supabase（在你自己机器上浏览器可直连 Supabase，无需任何转发器）。
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    env_file: .env
+    # 浏览器（宿主）访问后端/ Supabase 的地址；容器内 next 服务端也用同一套 .env。
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api

@@ -248,8 +248,12 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
         ws[f'C{r}'].font = Fn(SZ_NORMAL); ws[f'C{r}'].alignment = Al('center', vertical='center', wrap_text=True)
         ws[f'D{r}'].alignment = Al('center', vertical='center')
         ws[f'E{r}'].font = Fn(SZ_SPEC); ws[f'E{r}'].alignment = Al('left', vertical='center', wrap_text=True, indent=1)
-        for col in ('F', 'G', 'H'):
+        # F/G/H 逐维：若该维在 confirm_dims 里，单格标淡黄（覆盖白底；可与整行⚠叠加）
+        _confirm = p.get('confirm_dims') or []
+        for col, _key in (('F', 'W'), ('G', 'D'), ('H', 'H')):
             ws[f'{col}{r}'].font = Fn(SZ_NORMAL); ws[f'{col}{r}'].alignment = Al('center', vertical='center')
+            if _key in _confirm:
+                ws[f'{col}{r}'].fill = HL_FILL
         # 数量列：去底色 + 14pt 粗体 + 千位分隔
         ws[f'I{r}'].font = Fn(SZ_QTY, True); ws[f'I{r}'].alignment = Al('center', vertical='center')
         ws[f'I{r}'].fill = NO_FILL; ws[f'I{r}'].number_format = '#,##0'

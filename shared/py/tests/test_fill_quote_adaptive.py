@@ -341,3 +341,44 @@ def test_whitefill_yellow_overrides_on_flagged_row(footer_template, blank_pdf, t
     assert _fill_rgb(ws[f"N{r1}"]) == "FFFFF2CC"
     assert _fill_rgb(ws[f"C{r1}"]) == "FFFFFFFF"
     assert _fill_rgb(ws[f"I{r1}"]) is None
+
+
+# ==================== 任务3(A)：confirm_dims 逐维高亮（填表侧）====================
+def test_confirm_dims_single_dim_only_that_cell_yellow(footer_template, blank_pdf, tmp_path):
+    prods = _mk_products(1)
+    prods[0]["confirm_dims"] = ["W"]
+    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
+    r = START_ROW
+    assert _fill_rgb(ws[f"F{r}"]) == "FFFFF2CC"   # W 淡黄
+    assert _fill_rgb(ws[f"G{r}"]) == "FFFFFFFF"   # D 仍白
+    assert _fill_rgb(ws[f"H{r}"]) == "FFFFFFFF"   # H 仍白
+
+
+def test_confirm_dims_all_three_yellow(footer_template, blank_pdf, tmp_path):
+    prods = _mk_products(1)
+    prods[0]["confirm_dims"] = ["W", "D", "H"]
+    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
+    r = START_ROW
+    for col in ("F", "G", "H"):
+        assert _fill_rgb(ws[f"{col}{r}"]) == "FFFFF2CC"
+
+
+def test_confirm_dims_default_empty_no_highlight(footer_template, blank_pdf, tmp_path):
+    """缺省（_mk_products 无该字段）→ F/G/H 保持白底。"""
+    _, ws, _ = _run(footer_template, _mk_products(1), blank_pdf, tmp_path)
+    r = START_ROW
+    for col in ("F", "G", "H"):
+        assert _fill_rgb(ws[f"{col}{r}"]) == "FFFFFFFF"
+
+
+def test_confirm_dims_stacks_with_row_flag(footer_template, blank_pdf, tmp_path):
+    """整行 ⚠（品番+备考黄）与单维黄可叠加。"""
+    prods = _mk_products(1)
+    prods[0]["note_jp"] = "要確認"           # 触发整行 ⚠
+    prods[0]["confirm_dims"] = ["W"]         # 单维
+    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
+    r = START_ROW
+    assert _fill_rgb(ws[f"B{r}"]) == "FFFFF2CC"   # 品番格黄
+    assert _fill_rgb(ws[f"N{r}"]) == "FFFFF2CC"   # 备考格黄
+    assert _fill_rgb(ws[f"F{r}"]) == "FFFFF2CC"   # W 单格黄
+    assert _fill_rgb(ws[f"G{r}"]) == "FFFFFFFF"   # D 白

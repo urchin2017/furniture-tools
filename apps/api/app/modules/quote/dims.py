@@ -52,6 +52,8 @@ def _clean_product(p: dict[str, Any]) -> dict[str, Any]:
         src = "PENDING"
     mat_jp = [str(x) for x in (p.get("mat_jp") or []) if str(x).strip()]
     mat_cn = [str(x) for x in (p.get("mat_cn") or []) if str(x).strip()]
+    # 逐维待确认高亮（任务3）：清洗成 W/D/H 子集，缺省 []。透传给 fill_quote 单格标黄。
+    confirm_dims = [d for d in (p.get("confirm_dims") or []) if d in ("W", "D", "H")]
     return {
         "row_code": _norm_code(str(p.get("row_code") or "")),
         "name_jp": str(p.get("name_jp") or "").strip(),
@@ -66,6 +68,7 @@ def _clean_product(p: dict[str, Any]) -> dict[str, Any]:
         "dim_evidence": str(p.get("dim_evidence") or "").strip(),
         "note_jp": str(p.get("note_jp") or "").strip(),
         "note_cn": str(p.get("note_cn") or "").strip(),
+        "confirm_dims": confirm_dims,
     }
 
 

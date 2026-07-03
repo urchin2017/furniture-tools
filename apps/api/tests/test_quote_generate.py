@@ -37,6 +37,24 @@ def test_clean_product_coerces_and_guards():
     assert p["mat_jp"] == ["A"] and p["mat_cn"] == []
 
 
+def test_clean_product_sanitizes_confirm_dims():
+    # 合法维度保留、非法维度剔除、顺序按输入
+    assert dims._clean_product({"row_code": "F01", "confirm_dims": ["W", "X", "H"]})["confirm_dims"] == ["W", "H"]
+    # 缺省 → []（透传给 fill_quote 不标黄）
+    assert dims._clean_product({"row_code": "F01"})["confirm_dims"] == []
+    # None → []
+    assert dims._clean_product({"row_code": "F01", "confirm_dims": None})["confirm_dims"] == []
+    # 三维齐全
+    assert dims._clean_product({"row_code": "F01", "confirm_dims": ["W", "D", "H"]})["confirm_dims"] == ["W", "D", "H"]
+
+
+def test_merge_preserves_confirm_dims():
+    scaffold = [_rec("F01")]
+    decision = PageDecision(products=[_vis("F01", confirm_dims=["W", "H"])], cost_usd=0.0)
+    merged = dims.merge_page_decision(scaffold, decision)
+    assert merged[0]["confirm_dims"] == ["W", "H"], "视觉给出的逐维待确认应随 rec.update 透传到合并结果"
+
+
 def _rec(code, page=2, **kw):
     base = {
         "row_code": code, "page": page, "page_image": f"pages/full_page_{page:02d}.png",

@@ -48,6 +48,14 @@ def test_clean_product_sanitizes_confirm_dims():
     assert dims._clean_product({"row_code": "F01", "confirm_dims": ["W", "D", "H"]})["confirm_dims"] == ["W", "D", "H"]
 
 
+def test_system_prompt_instructs_confirm_dims():
+    from app.modules.quote.prompts import SYSTEM_PROMPT
+    # 任务3(B)：system prompt 必须要求模型逐维产出 confirm_dims，且在输出示例里带该键
+    assert "confirm_dims" in SYSTEM_PROMPT
+    assert "逐维待确认" in SYSTEM_PROMPT, "需有判定规则段，模型才知道何时标某维"
+    assert '"confirm_dims":["W"]' in SYSTEM_PROMPT, "输出格式示例应带 confirm_dims 键"
+
+
 def test_merge_preserves_confirm_dims():
     scaffold = [_rec("F01")]
     decision = PageDecision(products=[_vis("F01", confirm_dims=["W", "H"])], cost_usd=0.0)

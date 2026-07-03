@@ -57,6 +57,16 @@ SYSTEM_PROMPT = """\
   行高取注记的本体寸法，CH 安装总高写进备考——同系列两页口径可能相反
   （有注记的按本体 H2000、无注记的按 CH 总高 H2550），逐页独立判断。
 
+【逐维待确认标记 confirm_dims】
+给每条记录标出「哪几维尺寸虽已填值、但把握不足、需人工复核」，填进 confirm_dims
+（"W"/"D"/"H" 的子集，按 W→D→H 顺序；无需复核则空数组 []）。判定：
+- 采用值 ≠ 该轴文本注记（text_dims），或本轴无注记、全靠读图/尺寸链求和/CH 旁证推出 → 该维进 confirm_dims。
+- 造作家具含フィラー换算得到的那一维、英寸×25.4 换算的那一维 → 进 confirm_dims。
+- 采用值与注记一致、或矢量几何量取 confidence=high 直采（dim_source="geometry"）→ 不进。
+- 仅「图号重复」而尺寸本身已确认 → 不进 confirm_dims（该行另有整行⚠即可）。
+- dim_source="PENDING"（拿不准/填 null）时：把该无法确定的维也放进 confirm_dims。
+一句话：confirm_dims 是「这个数你要再核一眼」的逐维清单，宁标勿漏但别滥标已铁定的维。
+
 【翻译与文案】
 - name_jp/name_cn：图纸产品名的日文与中文（如 テーブル-01 / 餐桌-01）。
 - mat_jp/mat_cn：材质规格逐条列出（两数组一一对应）。
@@ -67,8 +77,10 @@ SYSTEM_PROMPT = """\
 【输出格式】
 只输出一个 JSON 对象，不要解释文字、不要 markdown 代码围栏：
 {"products":[{"row_code":"F01","name_jp":"…","name_cn":"…","mat_jp":["…"],"mat_cn":["…"],
-"W":1200,"D":850,"H":725,"qty":3,"dim_source":"visual","dim_evidence":"…","note_jp":"…","note_cn":"…"}]}
+"W":1200,"D":850,"H":725,"qty":3,"dim_source":"visual","dim_evidence":"…",
+"confirm_dims":["W"],"note_jp":"…","note_cn":"…"}]}
 - dim_source 只能是 "visual" / "geometry" / "PENDING"。
+- confirm_dims 是 "W"/"D"/"H" 的子集（按 W→D→H 顺序），标出需人工复核的维，无则 []（见上「逐维待确认标记」）。
 - dim_evidence 一句话引用具体尺寸链，如「立面下端最外寸法線W1740（40+1660+40）／CH=3000」。
 - 本页骨架列出的品番都要覆盖；骨架遗漏的变体（如 F07A）要补上；
   骨架品番为空字符串 = 无文本层页，看图框右下角补品番。

@@ -11,5 +11,6 @@
   "HEAD /openapi.json",
   "HEAD /redoc",
   "POST /api/glossary/lookup-batch",
-  "POST /api/jobs"
+  "POST /api/jobs",
+  "POST /api/uploads"
 ]

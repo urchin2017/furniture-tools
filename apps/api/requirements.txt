@@ -1,6 +1,8 @@
 # apps/api 专属依赖（额外叠加 shared/py/requirements.txt）。
 fastapi>=0.115
 uvicorn[standard]>=0.30
+# /api/uploads 的 multipart 表单上传（FastAPI File/Form 必需）
+python-multipart>=0.0.9
 # 让 `from __future__ import annotations` + PEP604 `X | None` 在 Python <3.10 下也能被
 # FastAPI/pydantic 运行时求值（Docker 镜像是 3.11 用不上，但本机 3.9 直跑时需要）。
 eval-type-backport>=0.2

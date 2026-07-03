@@ -59,7 +59,9 @@ class LLMResult:
 
 
 class ClaudeClient:
-    def __init__(self, api_key: str, *, model: str = "claude-opus-4-8", max_retries: int = 2):
+    # max_retries 默认 4：本机 TLS 抖动（SSL WRONG_VERSION_NUMBER），SDK 自带的
+    # 指数退避重试要多给几次机会，否则长管线里一次抖动就废掉整个任务。
+    def __init__(self, api_key: str, *, model: str = "claude-opus-4-8", max_retries: int = 4):
         import anthropic
 
         self._c = anthropic.Anthropic(api_key=api_key, max_retries=max_retries)

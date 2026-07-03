@@ -1,12 +1,15 @@
 # shared/py/skills · 从 skill 搬来的机械脚本
 
 各模块 session 把对应 skill 的**机械脚本**（PyMuPDF/openpyxl/裁图/渲染/weasyprint/reportlab，
-可原样复用的部分）搬进这里，判断步骤改调 `claude_client`。当前为占位。
+可原样复用的部分）搬进这里，判断步骤改调 `claude_client`。
 
 搬运来源（skill 磁盘路径见 plan 的「路线图」）：
 
-- **报价生成** ← `drawing-to-quotation-2026-07-02-v5`（原 `-2026-07-01-v3` 已下架；已对照 v5 skill 包实际内容核实，
-  下面是真实脚本清单，非按 v3 推测）。四步管线（顺序不可省）+ 1 个辅助脚本：
+- **报价生成 ✅ 已搬入 `drawing_to_quotation/`（2026-07-02）** ← `drawing-to-quotation-2026-07-02-v5`
+  （原 `-2026-07-01-v3` 已下架）。6 个脚本 + references + SKILL.md 原样搬入，仅加 import 入口
+  （`build_scaffold`/`fill_quote_build`/`render_xlsx`；fill_quote 的 `sys.exit` 改抛 `QuoteAuditError`，
+  否则后台任务里 SystemExit 绕过 runner 兜底）。判断步骤「定外形尺寸」在
+  `apps/api/app/modules/quote/{prompts,dims}.py`（complete_vision）。四步管线（顺序不可省）+ 1 个辅助脚本：
   1. `extract_scaffold.py` —— 文字层分诊 + **光栅页判定**(矢量层无线条+整页大图 → 打 `⚠ RASTER` 警告，
      强制走看图协议，不静默跳过) + 生成 `products.json` 骨架（含款号缩写`F07，07A`展开、数量解析）。
   2. **定外形尺寸**（判断步骤，非脚本）：矢量图纸优先用 `measure_dims.py` 的双信号几何量取

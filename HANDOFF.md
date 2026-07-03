@@ -45,6 +45,54 @@
 
 **报价生成 skill 版本更正**：`drawing-to-quotation-2026-07-01-v3` **已下架**，现在唯一有效版本是 **`drawing-to-quotation-2026-07-02-v5`**（`~/Dropbox/Cowork/Skill/quote skill/` 下唯一的 .skill 文件）。`CLAUDE.md`、`apps/api/app/modules/README.md`、`shared/py/skills/README.md`、`~/.claude/plans/claude-code-ticklish-thunder.md`（仓库外）都已同步改成 v5，且 `shared/py/skills/README.md` 的脚本清单是**解压 v5 包实际核实过的**（非推测）：四步管线 `extract_scaffold.py`(含光栅页⚠RASTER判定)→ 定外形尺寸(几何或看图协议，看图配合新脚本 `render_pages.py`)→ `fill_quote.py`(无照片时配合新脚本 `crop_drawings.py`)→ `render_check.py`。**v5 相比 v3 新增两个脚本**：`render_pages.py`、`crop_drawings.py`。`supabase/README.md` 里那句提历史数据来源的话没改（陈述既成事实，不是版本指针）。
 
+## 二点五、模块 A · 报价单生成 已完成（2026-07-02，本 session）
+
+- **机械脚本**：v5 skill 的 6 个脚本 + references + SKILL.md 原样搬进 `shared/py/skills/drawing_to_quotation/`，
+  仅加 import 入口：`build_scaffold()`（extract_scaffold 的 main 拆出）、`fill_quote_build()`（build 加返回摘要）、
+  `render_xlsx()`（render_check 包装）。⚠ fill_quote 原 `sys.exit()` 改抛 `QuoteAuditError`——SystemExit 不是
+  Exception 子类，会绕过 runner 兜底把 job 卡在 running。`openpyxl>=3.1` 已加进 `shared/py/requirements.txt`。
+- **判断步骤「定外形尺寸」**：`apps/api/app/modules/quote/{prompts,dims}.py`。SKILL.md prose（五铁律+看图协议+
+  石垣島案例教训）做成 `prompts.SYSTEM_PROMPT`；每页一次 `complete_vision`（整页 160dpi + 四象限 220dpi 放大，
+  复用 render_pages），输入骨架记录（measured/text_dims/qty_hint）+文字层+术语表命中（ja⇄zh 子串扫描），
+  输出该页全部品番的 W/D/H/qty/dim_source/dim_evidence/日中品名材质备考 JSON；`merge_page_decision` 合并回
+  骨架（补漏拆变体/认领空品番占位/漏答保持 PENDING 出⚠行）。跨页重复品番由 handler 机械补「重複・要確認」备考。
+- **handler**：`apps/api/app/modules/quote/generate.py:run`，注册 `runner.HANDLERS["quote_generate"]`（runner 里
+  懒 import，API 启动和离线测试不背 fitz/numpy/anthropic）。流程：uploads 桶下载（校验 key 必须
+  `<user_id>/` 前缀）→ 骨架 → 逐页视觉（进度 15→75）→ fill_quote → render_check（**无 soffice 自动降级为
+  warning**，Docker 里会真跑）→ 上传 outputs 桶 `<uid>/<job_id>/`（key 用 ASCII，中文名放 `display_name`）。
+  `output_files` 含 files 清单 + summary（rows/raster_pages/unconfirmed/missing/cost_usd/warnings/尺寸摘要）。
+  params：`pdf_path/template_path/project/skip_pages(默认[1]封面)/start_row(18)/last_row(50)/require_visual`。
+- **前端**：`apps/web/app/(app)/quote/generate/`（page + QuoteGenerate 客户端组件）；`/quote` 落地页改成模块卡片。
+  流程：`POST /api/uploads`（后端中转，见下）→ `POST /api/jobs`（Bearer token）→ 2.5s 轮询 →
+  完成后 signedUrl 下载 xlsx（download 属性还原中文名）+ ⚠未确认清单 + 尺寸摘要表 + 渲染验证 PNG 预览。
+- **⚠ 上传走后端中转 `POST /api/uploads`（真实文件测试时踩的坑，2026-07-02 当天改）**：
+  最初前端 anon 客户端直传 Supabase storage，用户拿真实图纸（65MB，压缩后 17MB）测试时浏览器直传
+  **必挂**（报 Failed to fetch）——本机上行慢（17MB 服务端传都要 28s）+ TLS 抖动，大文件浏览器直传撑不住；
+  服务端传得动。改成 浏览器→本地API（multipart，内网秒传）→ 服务端带 3 次重试传 uploads 桶。
+  `routers/uploads.py`；key = `<uid>/<purpose>/<12位随机>/<ASCII文件名>`（扩展名单独保底，纯 CJK 文件名
+  不会丢 .pdf）；>50MB 返回 413（Supabase 单文件上限）；前端也加了 50MB 预检提示。依赖新增
+  `python-multipart`（apps/api/requirements.txt）。黄金路由快照已 UPDATE_GOLDEN 重生成；api 测试现 38 项全绿。
+  另：65MB 原版图纸已用 PyMuPDF 重压位图出 17MB 版（保留文字层）：
+  `①_Make Quote Details_2026-06-28/raw_01/pip_quote_Drawing_260608見積依頼_压缩版_供上传.pdf`。
+- **测试**：`shared/py/tests/test_skills_quote.py`（合成矢量 PDF+空模板闭环：款号展开/数量各归各/⚠闸门/
+  require_visual 拒版/soffice 门控渲染）+ `apps/api/tests/test_quote_generate.py`（dims 单元/merge 三态/
+  handler 假 storage+假视觉全管线/路径越权 ValueError/注册表回归）。**shared 38+1skip、api 34 全绿**。
+  顺手修：三处测试 `HANDLERS.clear()` 不还原会掏空真实注册（test_runner/test_jobs_router/test_regression 已改
+  save→clear→restore）。
+- **真机端到端已验证**（合成图纸，两轮）：① 服务端直调 run_job：真 Supabase storage + 真 Claude 视觉，
+  Claude 正确采用几何量取（dim_source=geometry W1200/D850/H600 qty2），成本 **$0.069/页**；② 浏览器 UI 全链路
+  （preview + 本地 uvicorn）：上传→建任务→轮询→下载 signedUrl 200。测试数据已清理。
+- **✅ 真实图纸对账已完成（2026-07-02 深夜）**：石垣島 15 页真实图纸（压缩版 17MB）+ 真实模板全管线跑通
+  （22 分钟 / $1.74 / 16 行全部 visual 确认），与用户手工 v2 基准对账 **15/16 一致**，六个历史陷阱品番
+  （F04/F05/F10/F11/F12/F14）全对。唯一分歧 F13：AI 按 CH 总高 2550，基准按注记本体 H2000（上置き另计）——
+  属案例里"同系列两页口径不同"的细分歧，已把该教训补进 prompts.py（铁律四例外：注记明确本体高且分体另计时
+  取本体寸法）。成品在 `①_Make Quote Details_2026-06-28/raw_01/御見積書_石垣島美咲町ビル_AI生成_2026-07-02.xlsx`。
+- **遗留/注意**：❶ 模板的 start_row/列布局假设（C11 项目名、A~N 列、K/M 公式）与真实模板吻合（已实证）；
+  F13 类"分体另计"口径修正还没用新一轮真实运行回归验证过；
+  ❷ 视觉判断是每页一次调用，多品番复杂页如果超 8000 tokens 输出会截断（extract_json 会抛错、job 标 error，
+  可按页重试/调大）；❸ 本机验证时预览浏览器带着管理员登录态，临时建测试账号被权限分类器拦了（合理），
+  非 admin 销售账号的全流程（RLS 视角）还没真机走过——离线测试已覆盖隔离逻辑。
+
 ## 三、下一步（阶段 0 已全部完成，开始三大模块）
 
 阶段 0（T1~T10）全部做完了。接下来是三大模块（A 报价 / B 图纸 / C 唛头），把各 skill 的机械脚本搬进 `shared/py/skills/`、判断步骤改调 `claude_client`（搬运指引见 `shared/py/skills/README.md` 和 plan 的「路线图」）。每个模块大致要做：
@@ -54,11 +102,21 @@
 3. **前端页面**：`apps/web/app/(app)/<module>/` 建 `page.tsx`，调 `POST /api/jobs` 建任务、轮询 `GET /api/jobs/{id}` 拿进度/结果。
 4. **⚠️ Python 依赖缺口**：`shared/py/requirements.txt` 目前只有 `anthropic/supabase/pymupdf/pillow/numpy`，**没有 `weasyprint`/`openpyxl`/`reportlab`/`pypdf`**——用到时自己按需加进去；Dockerfile.api 的系统库（libpango/cairo/CJK字体/LibreOffice/poppler/ImageMagick）已经装好，只差 Python 包，加完包不用改 Dockerfile。
 
-**模块实现顺序：按 A 报价 → B 图纸 → C 唛头做**（用户明确要求，不按复杂度从简到难排）。三个模块的相对复杂度供心里有数（不代表实现顺序）：**A 报价最重**——"定外形尺寸"是纯视觉判断步骤，且这个 skill 自己 v2→v3→v5 反复重写就是因为真实图纸尺寸算错，**第一个模块就啃最难的这块，要预留跟真实图纸对账迭代的余量，别指望一次到位**；B 图纸中等（翻译判断步骤能直接复用 T6 的 glossary/claude_client）；C 唛头最简单（三个脚本全是纯机械脚本，没有 Claude 判断步骤，放最后做）。
+**模块实现顺序：按 A 报价 → B 图纸 → C 唛头做**（用户明确要求，不按复杂度从简到难排）。**A 报价单生成已完成**（见二点五；同模块的「报价单对比」excel-quote-compare 还没做）。三个模块的相对复杂度供心里有数：A 报价最重——"定外形尺寸"是纯视觉判断步骤，**跟真实图纸对账迭代的余量还没用掉，别指望一次到位**；B 图纸中等（翻译判断步骤能直接复用 T6 的 glossary/claude_client）；C 唛头最简单（三个脚本全是纯机械脚本，没有 Claude 判断步骤，放最后做）。
 
 ## 四、未解决的坑 / 注意事项
 
-1. **本机网络/TLS 抖动**：curl 要 `--retry`；`git push` 靠 `gh` 凭据助手 + 重试循环。Python 网络本 session 通（pip/httpx 都成），但历史上出过 SSLEOFError——保留重试习惯。
+1. **本机网络/TLS 抖动**：curl 要 `--retry`；`git push` 靠 `gh` 凭据助手 + 重试循环。Python 出网请求会随机抛
+   `httpx.ConnectError: SSL WRONG_VERSION_NUMBER` / SSLEOFError。**2026-07-02 真实图纸测试时它把跑到 93% 的
+   quote_generate 任务弄假死了**（成品上传抖断、连写 error 状态的请求也抖断）——已加 `shared/py/netretry.with_retry`
+   （只重试网络层错误，线性退避 4 次），runner 的状态写入/report_progress（尽力而为不杀任务）、generate 的
+   storage 上下行/查表、uploads 路由全部包上；`claude_client` 的 SDK max_retries 2→4；前端轮询连续 8 次失败才放弃
+   （401/404 立停）。**以后任何新 handler 的出网调用都要包 with_retry**。
+   第三个抖动点（同日再踩）：**鉴权 `auth.get_user(token)` 是每个请求都要走的出网调用**，握手超时会变成
+   无 CORS 头的 500 → 浏览器只显示 Failed to fetch。已改 `app/auth.py`：verify/fetch_role 包 with_retry、
+   重试耗尽抛 503（带 CORS 的正常响应）、`authenticate()` 加 **5 分钟 token 缓存**（轮询不再每 2.5s 出网验一次）；
+   前端 uploads/jobs 的 fetch 也加了 3 次重试 + 可读的「无法连接后端」提示。测试 41 项全绿
+   （conftest 加了 autouse 清 token 缓存，防跨测试串角色）。
 2. **PostgREST 单次最多 1000 行**：`.limit(大数)` 会被服务端盖住，超过 1000 静默漏数据。前端 `glossary` load() 已改 range 分页；`shared/py` glossary.load_map 已分页。**将来任何全表读都要分页**。
 3. **`supabase` 包名遮蔽**：后端本地包叫 **`supabase_client`**，绝不能改回 `supabase`（否则 `from supabase import create_client` 指向自己→崩）。
 4. **仓库在 Dropbox 里**：Dropbox 同步 `.git`/`node_modules` 可能和 git/构建打架。建议把这两个设成「不同步」或把仓库挪出 Dropbox（**尚未处理**）。

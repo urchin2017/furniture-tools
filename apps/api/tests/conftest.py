@@ -89,3 +89,13 @@ class FakeSupabase:
 @pytest.fixture
 def fake_supabase():
     return FakeSupabase()
+
+
+@pytest.fixture(autouse=True)
+def _clear_token_cache():
+    """auth.authenticate 有 5 分钟 token 缓存——不清会让同名 token 跨测试串角色。"""
+    from app.auth import _token_cache
+
+    _token_cache.clear()
+    yield
+    _token_cache.clear()

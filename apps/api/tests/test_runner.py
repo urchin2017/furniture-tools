@@ -8,9 +8,13 @@ from app.tasks.runner import HANDLERS, JobContext, run_job
 
 @pytest.fixture(autouse=True)
 def _clear_handlers():
+    # HANDLERS 现在启动时就有真实注册（quote_generate），测完必须还原而不是清空，
+    # 否则后跑的测试文件看到的是被掏空的注册表。
+    saved = dict(HANDLERS)
     HANDLERS.clear()
     yield
     HANDLERS.clear()
+    HANDLERS.update(saved)
 
 
 def test_run_job_success_writes_running_then_done(fake_supabase):

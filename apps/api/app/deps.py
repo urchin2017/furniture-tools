@@ -6,7 +6,7 @@ from functools import lru_cache
 from fastapi import Depends, Header, HTTPException, status
 from supabase import Client
 
-from app.auth import CurrentUser, fetch_role, verify_token
+from app.auth import CurrentUser, authenticate
 from app.config import get_settings  # noqa: F401  (触发 shared/py 加入 sys.path)
 
 from supabase_client import service_client_from_env
@@ -25,9 +25,9 @@ def get_current_user(
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="缺少登录凭证")
     token = authorization.split(" ", 1)[1].strip()
-    user_id, email = verify_token(supabase, token)
-    role = fetch_role(supabase, user_id)
-    return CurrentUser(id=user_id, email=email, role=role)
+    # authenticate = verify_token + fetch_role，带 5 分钟 token 缓存 + 网络重试
+    # （鉴权是每个请求都要过的出网调用，本机 TLS 抖动下必须这样兜）
+    return authenticate(supabase, token)
 
 
 def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:

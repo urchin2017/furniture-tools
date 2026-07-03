@@ -25,16 +25,20 @@ def test_unregistered_feature_job_never_stuck_in_queued(fake_supabase):
     """回归：feature 没注册 handler 时，job 必须显式落到 status='error'，
     不能像最初设计那样悄悄停在 'queued' 让人误以为还在排队。
     """
+    saved_handlers = dict(HANDLERS)  # HANDLERS 现在有真实注册（quote_generate），测完还原
     HANDLERS.clear()
-    fake_supabase.table("jobs").insert(
-        {"id": "job-x", "user_id": "u1", "feature": "shipping_marks"}
-    ).execute()
+    try:
+        fake_supabase.table("jobs").insert(
+            {"id": "job-x", "user_id": "u1", "feature": "shipping_marks"}
+        ).execute()
 
-    run_job(fake_supabase, "job-x", "shipping_marks", {})
+        run_job(fake_supabase, "job-x", "shipping_marks", {})
 
-    row = fake_supabase._tables["jobs"][0]
-    assert row["status"] != "queued"
-    assert row["status"] == "error"
+        row = fake_supabase._tables["jobs"][0]
+        assert row["status"] != "queued"
+        assert row["status"] == "error"
+    finally:
+        HANDLERS.update(saved_handlers)
 
 
 def test_service_role_bypass_still_isolates_jobs_by_user(fake_supabase):

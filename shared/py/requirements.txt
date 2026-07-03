@@ -5,6 +5,8 @@ supabase>=2.9
 pymupdf>=1.24
 pillow>=10.0
 numpy>=1.26
+# skills/drawing_to_quotation（报价单填表/渲染验证）用
+openpyxl>=3.1
 
 # 仅测试用
 pytest>=8.0

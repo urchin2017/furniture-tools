@@ -18,6 +18,7 @@ def _override_user():
 
 def test_create_job_runs_in_background_and_reaches_done(fake_supabase):
     ran_with = []
+    saved_handlers = dict(runner.HANDLERS)  # HANDLERS 现在有真实注册（quote_generate），测完还原
     runner.HANDLERS["quote_generate"] = lambda ctx: (ran_with.append(ctx.job_id), {"done": True})[1]
 
     app.dependency_overrides[get_current_user] = _override_user
@@ -37,6 +38,7 @@ def test_create_job_runs_in_background_and_reaches_done(fake_supabase):
     finally:
         app.dependency_overrides.clear()
         runner.HANDLERS.clear()
+        runner.HANDLERS.update(saved_handlers)
 
 
 def test_create_job_rejects_unknown_feature(fake_supabase):

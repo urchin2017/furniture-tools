@@ -306,3 +306,38 @@ def test_golden_fill_quote_adaptive(footer_template, blank_pdf, tmp_path):
         pytest.skip("已更新 fill_quote_adaptive.json")
     assert _GOLDEN.exists(), "缺 golden/fill_quote_adaptive.json —— 先跑 UPDATE_GOLDEN=1 生成"
     assert sig == json.loads(_GOLDEN.read_text(encoding="utf-8"))
+
+
+# ==================== 任务2：数据行显式纯白底 ====================
+def _fill_rgb(cell):
+    """solid 填充 → ARGB 字符串；无填充 → None。"""
+    if cell.fill and cell.fill.patternType:
+        rgb = cell.fill.fgColor.rgb
+        return rgb if isinstance(rgb, str) else None
+    return None
+
+
+def test_whitefill_data_rows_solid_white(footer_template, blank_pdf, tmp_path):
+    """所有数据行 A–N 显式纯白；数量列 I 无填充（去底色）。"""
+    _, ws, _ = _run(footer_template, _mk_products(3), blank_pdf, tmp_path)
+    for i in range(3):
+        r = START_ROW + i
+        for col in ("A", "C", "E", "F", "K", "N"):
+            assert _fill_rgb(ws[f"{col}{r}"]) == "FFFFFFFF", f"{col}{r} 应为纯白"
+        assert _fill_rgb(ws[f"I{r}"]) is None, f"I{r} 数量列应无填充"
+
+
+def test_whitefill_yellow_overrides_on_flagged_row(footer_template, blank_pdf, tmp_path):
+    """⚠行 B/N 淡黄覆盖白底，其余列仍白；I 列仍无填充；未标记行全白。"""
+    prods = _mk_products(2)
+    prods[1]["note_jp"] = "要確認"          # 触发 ⚠ flag
+    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
+    r0, r1 = START_ROW, START_ROW + 1
+    # 未标记行：B/N 纯白
+    assert _fill_rgb(ws[f"B{r0}"]) == "FFFFFFFF"
+    assert _fill_rgb(ws[f"N{r0}"]) == "FFFFFFFF"
+    # 标记行：B/N 淡黄；C 仍白；I 仍无填充
+    assert _fill_rgb(ws[f"B{r1}"]) == "FFFFF2CC"
+    assert _fill_rgb(ws[f"N{r1}"]) == "FFFFF2CC"
+    assert _fill_rgb(ws[f"C{r1}"]) == "FFFFFFFF"
+    assert _fill_rgb(ws[f"I{r1}"]) is None

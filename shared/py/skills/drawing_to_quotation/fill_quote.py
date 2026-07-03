@@ -44,6 +44,7 @@ def fix_terms(s):
         s = s.replace(a, b)
     return s
 HL_FILL = PatternFill("solid", fgColor="FFFFF2CC")   # 待确认项淡黄高亮
+WHITE_FILL = PatternFill("solid", fgColor="FFFFFFFF")  # 数据行显式纯白（防某些查看器把“无填充”渲染成灰）
 
 
 class QuoteAuditError(RuntimeError):
@@ -221,6 +222,9 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
         qty = p.get('qty')
         notejp, notecn = p.get('note_jp', ''), p.get('note_cn', '')
         ws.row_dimensions[r].height = row_h
+        # 先整行刷纯白（黄色⚠高亮随后覆盖 B/N，数量列 I 随后置 NO_FILL 去底色）
+        for _c in 'ABCDEFGHIJKLMN':
+            ws[f'{_c}{r}'].fill = WHITE_FILL
 
         # 待确认判定：备考含要確認/重複 / W·D·H 缺失 / 尺寸未视觉确认
         flag = (any(k in (notejp or '') for k in ('要確認', '重複'))

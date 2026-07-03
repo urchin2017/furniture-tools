@@ -109,7 +109,7 @@ export default function QuoteGenerate() {
     setLinks(out);
   }
 
-  function startPoll(jobId: string, token: string) {
+  function startPoll(jobId: string) {
     stopPoll();
     // 本机网络有 TLS 抖动，单次轮询失败很常见——连续多次失败才放弃，
     // 401/404 这类确定性错误则立刻停。
@@ -117,6 +117,14 @@ export default function QuoteGenerate() {
     const MAX_MISSES = 8;
     pollRef.current = setInterval(async () => {
       try {
+        // 每轮取最新 token：Supabase access token 默认 1 小时过期，长任务（大图纸
+        // 多页看图）会跨过有效期；getSession() 在临近过期时自动续期，避免轮询中途
+        // 401 而后端其实还在跑（旧实现里 token 只在提交时取一次，长任务必 401）。
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) {
+          throw Object.assign(new Error("登录状态失效，请重新登录"), { fatal: true });
+        }
         const res = await fetch(`${API}/api/jobs/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -218,7 +226,7 @@ export default function QuoteGenerate() {
       }
       const job: Job = await res.json();
       setPhase("running");
-      startPoll(job.id, token);
+      startPoll(job.id);
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : String(e2));
       setPhase("error");

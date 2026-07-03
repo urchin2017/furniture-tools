@@ -1,9 +1,25 @@
+import os
 import pathlib
 import sys
 import uuid
 
 # 把 apps/api 加入 sys.path，好 `import app.xxx`（app/config.py 会再把 shared/py 接上）。
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+# shared/py 在 sys.path 上才能 import settings.load_env（app.config 也靠它）。
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "shared" / "py"))
+
+# 离线单测在 import app 时会触发 get_settings()，需要这几个环境变量存在（值不必真实——
+# Supabase/Claude 都被假桩/依赖覆盖替掉了）。本地开发若仓库根有真 .env 则真实值优先，
+# 云端/CI 没有 .env 时用占位值兜底，让纯离线套件无需任何密钥即可跑通。
+from settings import load_env as _load_env  # noqa: E402
+
+_load_env()  # 真 .env 若存在，其值先进 os.environ，下面的占位不会覆盖
+for _k, _v in {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://placeholder.supabase.co",
+    "SUPABASE_SERVICE_ROLE_KEY": "sb_secret_placeholder",
+    "ANTHROPIC_API_KEY": "sk-ant-placeholder",
+}.items():
+    os.environ.setdefault(_k, _v)
 
 import pytest
 

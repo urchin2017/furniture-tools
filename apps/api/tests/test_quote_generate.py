@@ -204,6 +204,30 @@ def test_handler_full_pipeline_offline(storage_supabase, monkeypatch):
     assert prog >= 86
 
 
+def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch):
+    """单页视觉失败（如模型空输出）不拖垮整单：该页保留骨架⚠，仍出草稿 xlsx。"""
+    class _FakeClaude:
+        @classmethod
+        def from_env(cls):
+            return cls()
+
+    def boom(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
+        raise ValueError("模型输出里找不到 JSON 对象：''")
+
+    monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
+    monkeypatch.setattr(dims, "decide_page", boom)
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+
+    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params())
+    result = generate.run(ctx)  # 不抛异常 = 单页失败被兜住
+
+    outputs = storage_supabase.storage.buckets["outputs"]
+    assert any(k.endswith(".xlsx") for k in outputs), "即使视觉失败也要出草稿 xlsx"
+    summary = result["summary"]
+    assert summary["rows"] >= 1 and summary["unconfirmed"], "失败页应保留为 PENDING（⚠）"
+    assert any("视觉失败" in w for w in summary["warnings"]), "应带失败页警告"
+
+
 def test_handler_rejects_foreign_paths(storage_supabase):
     ctx = JobContext(supabase=storage_supabase, job_id="job-q1",
                      params=_params(pdf_path="u2/quote/1/drawing.pdf"))

@@ -168,10 +168,18 @@ def run(ctx) -> dict[str, Any]:
                 page_text = d[pageno - 1].get_text()
                 images, legend = dims.render_vision_images(d, pageno, vision_dir)
                 gl_lines = dims.glossary_hits_for_text(page_text, maps)
-                decision = dims.decide_page(
-                    claude, pageno=pageno, records=recs, page_text=page_text,
-                    images_png=images, image_legend=legend, glossary_lines=gl_lines,
-                )
+                try:
+                    decision = dims.decide_page(
+                        claude, pageno=pageno, records=recs, page_text=page_text,
+                        images_png=images, image_legend=legend, glossary_lines=gl_lines,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    # 单页视觉失败（模型空输出/超时/限速耗尽等）不拖垮整单：该页返回空决策，
+                    # 由 merge_page_decision 走⚠兜底（保留骨架、标 PENDING 待人工），其余页照常出。
+                    decision = dims.PageDecision(
+                        products=[], cost_usd=0.0,
+                        warnings=[f"第 {pageno} 页视觉失败，已跳过、保留骨架待人工核对：{exc}"],
+                    )
                 return pageno, recs, decision
             finally:
                 d.close()

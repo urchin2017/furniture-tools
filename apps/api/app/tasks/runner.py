@@ -7,12 +7,17 @@ handler 后注册进 `HANDLERS` 就能被这里调度；没注册的 feature 直
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from supabase import Client
 
 from netretry import with_retry
+
+
+class JobCancelled(Exception):
+    """用户中途取消任务（前端 POST /api/jobs/{id}/cancel 把 status 置 cancelled）。"""
 
 
 def _update_job(supabase: Client, job_id: str, payload: dict[str, Any]) -> None:
@@ -25,17 +30,38 @@ def _update_job(supabase: Client, job_id: str, payload: dict[str, Any]) -> None:
 
 @dataclass
 class JobContext:
-    """传给 handler 的执行上下文：读 params、汇报进度。"""
+    """传给 handler 的执行上下文：读 params、汇报进度、查是否被取消。"""
 
     supabase: Client
     job_id: str
     params: dict[str, Any]
+    _last_cancel_check: float = field(default=0.0, repr=False)
+    _cancelled: bool = field(default=False, repr=False)
 
     def report_progress(self, progress: int) -> None:
         try:
             _update_job(self.supabase, self.job_id, {"progress": progress})
         except Exception:  # noqa: BLE001 — 进度是尽力而为，绝不因它杀掉任务本体
             pass
+
+    def is_cancelled(self) -> bool:
+        """任务是否被用户取消（读 jobs.status=='cancelled'）。节流：最多每 2s 查一次库，
+        供长任务在页与页之间调用，命中后即刻停下。查询失败保守当未取消。"""
+        if self._cancelled:
+            return True
+        now = time.time()
+        if now - self._last_cancel_check < 2.0:
+            return False
+        self._last_cancel_check = now
+        try:
+            rows = (
+                self.supabase.table("jobs").select("status").eq("id", self.job_id).limit(1).execute().data
+            )
+            if rows and rows[0].get("status") == "cancelled":
+                self._cancelled = True
+        except Exception:  # noqa: BLE001
+            pass
+        return self._cancelled
 
 
 JobHandler = Callable[[JobContext], dict[str, Any]]
@@ -66,6 +92,10 @@ def run_job(supabase: Client, job_id: str, feature: str, params: dict[str, Any])
     ctx = JobContext(supabase=supabase, job_id=job_id, params=params)
     try:
         result = handler(ctx)
+    except JobCancelled:
+        # 用户取消：保持 cancelled 状态，不写 error/done（前端已停轮询、回到可重来的状态）。
+        _update_job(supabase, job_id, {"status": "cancelled"})
+        return
     except Exception as exc:  # noqa: BLE001 — 后台任务必须兜底，否则异常被吞掉、job 卡在 running
         _update_job(supabase, job_id, {"status": "error", "error": str(exc)})
         return

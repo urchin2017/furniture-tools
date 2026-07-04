@@ -4,5 +4,6 @@
   "GET /health",
   "POST /api/glossary/lookup-batch",
   "POST /api/jobs",
+  "POST /api/jobs/{job_id}/cancel",
   "POST /api/uploads"
 ]

@@ -145,13 +145,14 @@ def run(ctx) -> dict[str, Any]:
         raster_pages: list[int] = payload.get("raster_pages", [])
         ctx.report_progress(15)
 
-        # ② 定外形尺寸（判断步骤 → complete_vision，铁律见 prompts.SYSTEM_PROMPT）。
-        #    多页并行看图：串行时第 N 页要等前 N-1 页 AI 依次返回，十几页要十几分钟；
-        #    改成并发（默认 4，QUOTE_VISION_CONCURRENCY 可调），墙钟约按并发数缩短。
-        #    system prompt 逐页复用，走 ephemeral 缓存（见 claude_client）再省一笔。
+        # ② 定外形尺寸。成本控制：矢量高置信页 W/H 几何已可靠量出 → 走**廉价文字路**（不发图，
+        #    单页省约 5~8 倍）；只有扫描/手绘/几何不置信页才走**视觉路**（贵）。分流模式 vision_mode：
+        #    auto=按页判定（默认，省钱）、always=一律视觉（最准）。多页并行（QUOTE_VISION_CONCURRENCY，
+        #    默认4）；system prompt 逐页复用走 ephemeral 缓存（见 claude_client）。
         maps, warnings = _load_glossary_maps(ctx)
         claude = ClaudeClient.from_env()
         pages = sorted({p["page"] for p in products})
+        vmode = str(params.get("vision_mode") or os.environ.get("QUOTE_VISION_MODE", "auto")).lower()
         cost_usd = 0.0
         in_tok = 0
         out_tok = 0
@@ -166,33 +167,48 @@ def run(ctx) -> dict[str, Any]:
             try:
                 recs = [p for p in products if p["page"] == pageno]
                 page_text = d[pageno - 1].get_text()
-                images, legend = dims.render_vision_images(d, pageno, vision_dir)
                 gl_lines = dims.glossary_hits_for_text(page_text, maps)
+                use_vision = vmode == "always" or dims.page_needs_vision(recs, raster_pages, pageno)
                 try:
-                    decision = dims.decide_page(
-                        claude, pageno=pageno, records=recs, page_text=page_text,
-                        images_png=images, image_legend=legend, glossary_lines=gl_lines,
-                    )
+                    if use_vision:
+                        images, legend = dims.render_vision_images(d, pageno, vision_dir)
+                        decision = dims.decide_page(
+                            claude, pageno=pageno, records=recs, page_text=page_text,
+                            images_png=images, image_legend=legend, glossary_lines=gl_lines,
+                        )
+                    else:
+                        # 廉价文字路：矢量高置信页，不渲染大图、不发图，只跑一次纯文字调用。
+                        decision = dims.decide_page_text(
+                            claude, pageno=pageno, records=recs, page_text=page_text,
+                            glossary_lines=gl_lines,
+                        )
                 except Exception as exc:  # noqa: BLE001
-                    # 单页视觉失败（模型空输出/超时/限速耗尽等）不拖垮整单：该页返回空决策，
+                    # 单页判断失败（模型空输出/超时/限速耗尽等）不拖垮整单：该页返回空决策，
                     # 由 merge_page_decision 走⚠兜底（保留骨架、标 PENDING 待人工），其余页照常出。
                     decision = dims.PageDecision(
                         products=[], cost_usd=0.0,
-                        warnings=[f"第 {pageno} 页视觉失败，已跳过、保留骨架待人工核对：{exc}"],
+                        warnings=[f"第 {pageno} 页{'视觉' if use_vision else '文字'}判断失败，"
+                                  f"已跳过、保留骨架待人工核对：{exc}"],
                     )
-                return pageno, recs, decision
+                return pageno, recs, decision, use_vision
             finally:
                 d.close()
 
         n_pages = len(pages)
         workers = max(1, min(int(os.environ.get("QUOTE_VISION_CONCURRENCY", "4")), n_pages or 1))
         decisions: dict[int, tuple[list[dict[str, Any]], Any]] = {}
+        n_vision = 0
+        n_text = 0
         done = 0
         with ThreadPoolExecutor(max_workers=workers) as ex:
             futs = {ex.submit(_decide_one, pn): pn for pn in pages}
             for fut in as_completed(futs):
-                pageno, recs, decision = fut.result()  # 某页硬失败 → 抛出，整个任务失败（与原行为一致）
+                pageno, recs, decision, used_vision = fut.result()
                 decisions[pageno] = (recs, decision)
+                if used_vision:
+                    n_vision += 1
+                else:
+                    n_text += 1
                 cost_usd += decision.cost_usd
                 in_tok += decision.input_tokens
                 out_tok += decision.output_tokens
@@ -257,7 +273,9 @@ def run(ctx) -> dict[str, Any]:
                 "output_tokens": out_tok,
                 "cache_read_input_tokens": cache_read_tok,
                 "cache_creation_input_tokens": cache_write_tok,
-                "vision_calls": len(pages),
+                "vision_calls": n_vision,
+                "text_calls": n_text,
+                "vision_mode": vmode,
                 "warnings": warnings,
                 "products": [
                     {k: p.get(k) for k in ("row_code", "page", "W", "D", "H", "qty", "dim_source", "confirm_dims")}

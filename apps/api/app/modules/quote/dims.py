@@ -13,7 +13,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from .prompts import SYSTEM_PROMPT, build_user_text
+from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_TEXT, build_user_text
 
 # 视觉渲染 DPI：整页图超过 API 长边上限(约1568px)会被服务端等比缩小，
 # 所以整页不必高于 160；细小尺寸数字靠四象限放大图（render_pages 里是 dpi+60）。
@@ -141,6 +141,61 @@ def decide_page(
     raw = data.get("products")
     if not isinstance(raw, list):
         raise ValueError(f"第 {pageno} 页模型输出缺少 products 数组")
+    products = [_clean_product(p) for p in raw if isinstance(p, dict)]
+    warnings = [
+        f"第 {pageno} 页 {p['row_code'] or '(空品番)'}：dim_source={p['dim_source']}，未确认"
+        for p in products
+        if p["dim_source"] == "PENDING"
+    ]
+    return PageDecision(
+        products=products,
+        cost_usd=result.usage.cost_usd(),
+        warnings=warnings,
+        input_tokens=result.usage.input_tokens,
+        output_tokens=result.usage.output_tokens,
+        cache_read_input_tokens=result.usage.cache_read_input_tokens,
+        cache_creation_input_tokens=result.usage.cache_creation_input_tokens,
+        model=result.model,
+    )
+
+
+def page_needs_vision(records: list[dict[str, Any]], raster_pages, pageno: int) -> bool:
+    """分流判定：这一页要不要送**视觉**（贵）？还是几何+文字就够（廉价文字路）？
+
+    成本控制铁律：矢量高置信页 W/H 几何已可靠量出 → 不必再送图给 AI「看」，走纯文字调用即可。
+    仅以下情形才需视觉：光栅/扫描页、无矢量层、几何低置信、或 W/H 任一轴局部疑似/超界。
+    """
+    if pageno in (raster_pages or []):
+        return True
+    m = (records[0].get("measured") or {}) if records else {}
+    if not m.get("vector_ok") or m.get("confidence") != "high":
+        return True
+    for axis in ("W", "H"):
+        a = m.get(axis) or {}
+        if a.get("overall_value") is None or a.get("suspect_local") or not a.get("extent_ok"):
+            return True
+    return False  # 矢量 + 高置信 + W/H 干净 → 走廉价文字路，不发图
+
+
+def decide_page_text(
+    claude,
+    *,
+    pageno: int,
+    records: list[dict[str, Any]],
+    page_text: str,
+    glossary_lines: list[str],
+) -> PageDecision:
+    """廉价文字路：矢量高置信页不发图，仅凭几何量取 + 文字层 + 术语表跑一次**纯文字**判断。
+
+    与 decide_page 同口径返回，但用 complete（无图）→ 输入 token 只有几千（视觉路要 ~1.6万+），
+    单页成本降约 5~8 倍，且几乎不上传大图（顺带不吃上行带宽、不卡网络）。
+    """
+    user_text = build_user_text(pageno, records, page_text, glossary_lines, image_legend=[])
+    result = claude.complete(system=SYSTEM_PROMPT_TEXT, user_text=user_text, max_tokens=16000)
+    data = extract_json(result.text)
+    raw = data.get("products")
+    if not isinstance(raw, list):
+        raise ValueError(f"第 {pageno} 页（文字路）模型输出缺少 products 数组")
     products = [_clean_product(p) for p in raw if isinstance(p, dict)]
     warnings = [
         f"第 {pageno} 页 {p['row_code'] or '(空品番)'}：dim_source={p['dim_source']}，未确认"

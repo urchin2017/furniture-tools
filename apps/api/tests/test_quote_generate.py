@@ -225,7 +225,78 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     assert any(k.endswith(".xlsx") for k in outputs), "即使视觉失败也要出草稿 xlsx"
     summary = result["summary"]
     assert summary["rows"] >= 1 and summary["unconfirmed"], "失败页应保留为 PENDING（⚠）"
-    assert any("视觉失败" in w for w in summary["warnings"]), "应带失败页警告"
+    assert any("判断失败" in w for w in summary["warnings"]), "应带失败页警告"
+
+
+def test_page_needs_vision_routing():
+    clean = {"vector_ok": True, "confidence": "high",
+             "W": {"overall_value": 1740, "extent_ok": True, "suspect_local": False},
+             "H": {"overall_value": 2650, "extent_ok": True, "suspect_local": False}}
+    rec = lambda m: [{"measured": m}]  # noqa: E731
+    assert dims.page_needs_vision(rec(clean), [], 2) is False, "矢量高置信+W/H干净 → 走文字路"
+    assert dims.page_needs_vision(rec(clean), [2], 2) is True, "光栅页 → 视觉"
+    assert dims.page_needs_vision(rec({**clean, "vector_ok": False}), [], 2) is True
+    assert dims.page_needs_vision(rec({**clean, "confidence": "low"}), [], 2) is True
+    assert dims.page_needs_vision(rec({**clean, "W": {**clean["W"], "suspect_local": True}}), [], 2) is True
+    assert dims.page_needs_vision(rec({**clean, "H": {**clean["H"], "extent_ok": False}}), [], 2) is True
+    assert dims.page_needs_vision([], [], 2) is True, "无记录 → 保守走视觉"
+
+
+def test_handler_auto_mode_uses_text_path_for_vector_pages(storage_supabase, monkeypatch):
+    """auto 模式：判定为矢量高置信的页走廉价文字路（不发图），不调视觉。"""
+    class _FakeClaude:
+        @classmethod
+        def from_env(cls):
+            return cls()
+
+    called = {"vision": 0, "text": 0}
+
+    def fake_vision(*a, **k):
+        called["vision"] += 1
+        raise AssertionError("矢量高置信页不该走视觉路")
+
+    def fake_text(claude, *, pageno, records, page_text, glossary_lines):
+        called["text"] += 1
+        return PageDecision(products=[_vis(r["row_code"] or "F01") for r in records], cost_usd=0.01)
+
+    monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+    monkeypatch.setattr(dims, "page_needs_vision", lambda recs, raster, pageno: False)
+    monkeypatch.setattr(dims, "decide_page", fake_vision)
+    monkeypatch.setattr(dims, "decide_page_text", fake_text)
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
+    assert called["text"] >= 1 and called["vision"] == 0, "auto 模式矢量页走文字路"
+    assert result["summary"]["text_calls"] >= 1 and result["summary"]["vision_calls"] == 0
+
+
+def test_handler_always_mode_forces_vision(storage_supabase, monkeypatch):
+    """always 模式：即便判定不需视觉，也强制走视觉路。"""
+    class _FakeClaude:
+        @classmethod
+        def from_env(cls):
+            return cls()
+
+    called = {"vision": 0, "text": 0}
+
+    def fake_vision(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
+        called["vision"] += 1
+        return PageDecision(products=[_vis(r["row_code"] or "F01") for r in records], cost_usd=0.02)
+
+    def fake_text(*a, **k):
+        called["text"] += 1
+        raise AssertionError("always 模式不该走文字路")
+
+    monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+    monkeypatch.setattr(dims, "page_needs_vision", lambda *a, **k: False)  # 判定"不需视觉"也无效
+    monkeypatch.setattr(dims, "decide_page", fake_vision)
+    monkeypatch.setattr(dims, "decide_page_text", fake_text)
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1",
+                                     params=_params(vision_mode="always")))
+    assert called["vision"] >= 1 and called["text"] == 0, "always 模式强制视觉"
+    assert result["summary"]["vision_calls"] >= 1 and result["summary"]["text_calls"] == 0
 
 
 def test_handler_rejects_foreign_paths(storage_supabase):

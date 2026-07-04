@@ -18,9 +18,9 @@ SYSTEM_PROMPT = """\
 【五条铁律——违反任何一条都是报价事故】
 一、外形 W/D/H 优先几何量取（仅矢量图纸有效）；光栅图纸（图纸本体是位图）必须看图读「最外侧尺寸链」。
 二、一个品番 = 一条记录。F01 与 F01A 是两条，各填各自数量，绝不合并求和。
-三、文本层注记（页角的 W… D… H…）绝不直接当外形——它常是局部/本体/分段尺寸。
-    必须与图面最外侧尺寸链核对；不一致时以图面为准，并在备考写明差异缘由
-    （如「※図面注記W600は分割寸法・外形はW1200」），既保正确值、又给对方复核线索。
+三、**尺寸只从图面尺寸线读取，绝不采用任何文字/注记里的 W/D/H 数值**——那些文字常由人工填写、
+    时有笔误，一律不可信、不得作为尺寸依据。W/D/H 一律看图面最外侧尺寸链得出。
+    （本次输入不再提供文字注记尺寸；即便你在图上看到角落写着数字，也以图面尺寸线为唯一准绳。）
 四、造作（嵌入式）家具的报价外形 = 含フィラー（填缝条/調整材）的安装外形：
     W 取最外侧链（如 40+1660+40=1740）；H 按 CH（天井高）基准（柜体2610+顶部40=2650=CH）。
     柜体裸尺寸写进备考。独立家具（桌椅沙发等）不受此条影响，取产品自身最外轮廓。
@@ -33,8 +33,8 @@ SYSTEM_PROMPT = """\
 2. 立面出现 WL/CL/FL/フィラー/調整材 → 造作家具，按铁律四取安装外形；
    `CH=xxxx` 注记是总高的强力旁证。
 3. D（深度）看侧视图/断面图的最外链。
-4. 与 text_dims（文字注记候选）对照：一致→放心；不一致→以图面为准，
-   备考写明注记实际含义（分割寸法/本体寸法/部分寸法）。
+4. 图面尺寸线是**唯一**尺寸依据。不再给你文字注记尺寸；图上角落若有手写/打印的数字，
+   视为不可信旁证，绝不当尺寸值——只认贯穿产品的最外侧尺寸线。
 5. 数量：注记「数量：2pcs」与图框角「F04：2台」互为旁证；多型号页
    「数量：F07：1pcs。F07A：2pcs。共3pcs」各归各，共计值只做校验；不一致备考标「要確認」。
 6. 若给了 measured（几何量取结果）：vector_ok=true 且 confidence=high 且该轴
@@ -94,24 +94,40 @@ def build_user_text(
     page_text: str,
     glossary_lines: list[str],
     image_legend: list[str],
+    image_only: bool = False,
 ) -> str:
-    """拼每页的 user 消息：骨架记录 + 文字层 + 术语表命中 + 图片说明。"""
+    """拼每页的 user 消息：骨架记录 + 图片说明（+ 术语表命中）。
+
+    image_only=True（视觉路默认）：**不把文字注记尺寸/文字层原文喂给模型**——尺寸只让它看图读，
+    因为客户图上的手填尺寸常有笔误，不可信。仅保留品番清单（要报哪些品番）+ 术语表译法。
+    image_only=False（文字路专用）：保留 text_dims/文字层，用于矢量+可信文字的廉价文字路。
+    """
     skeleton = [
         {
             "row_code": r.get("row_code", ""),
-            "qty_hint": r.get("qty_hint"),
-            "text_dims": r.get("text_dims"),
+            **({} if image_only else {
+                "qty_hint": r.get("qty_hint"),
+                "text_dims": r.get("text_dims"),
+            }),
             "measured": {k: v for k, v in (r.get("measured") or {}).items() if k != "hint"},
         }
         for r in records
     ]
-    parts = [
-        f"图纸第 {page_no} 页。附图：{'；'.join(image_legend)}。",
-        "骨架记录（extract_scaffold 生成；text_dims 是文字注记候选≠外形，measured 是几何量取结果）：",
-        json.dumps(skeleton, ensure_ascii=False, indent=1),
-        "本页文字层原文（供品名/材质/数量参考）：",
-        (page_text or "").strip()[:2000] or "（本页无文字层）",
-    ]
+    parts = [f"图纸第 {page_no} 页。附图：{'；'.join(image_legend)}。"]
+    if image_only:
+        parts += [
+            "本页需报价的品番清单（尺寸/品名/材质一律看图读，不给你文字注记）：",
+            json.dumps([s["row_code"] for s in skeleton], ensure_ascii=False),
+            "（measured 若有=矢量几何量取，可信参考）：" + json.dumps(
+                [s["measured"] for s in skeleton], ensure_ascii=False),
+        ]
+    else:
+        parts += [
+            "骨架记录（extract_scaffold 生成；text_dims 是文字注记候选≠外形，measured 是几何量取结果）：",
+            json.dumps(skeleton, ensure_ascii=False, indent=1),
+            "本页文字层原文（供品名/材质/数量参考）：",
+            (page_text or "").strip()[:2000] or "（本页无文字层）",
+        ]
     if glossary_lines:
         parts.append("术语表命中（译法以此为准）：\n" + "\n".join(glossary_lines[:40]))
     parts.append("请按 system 指示输出本页全部品番的 JSON。")

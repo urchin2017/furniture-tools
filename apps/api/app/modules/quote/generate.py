@@ -147,10 +147,12 @@ def run(ctx) -> dict[str, Any]:
         raster_pages: list[int] = payload.get("raster_pages", [])
         ctx.report_progress(15)
 
-        # ② 定外形尺寸。vision_mode 三档：
-        #    local  = 纯本地零 AI（几何+文字+术语表，不调 Anthropic、不需 API key）；
-        #    auto   = 按页判定（默认，省钱）：矢量高置信页走廉价文字路（不发图）、扫描/几何不置信页走视觉；
-        #    always = 一律视觉（最准最贵）。
+        # ② 定外形尺寸。核心分流原则：**先判位图还是矢量，再决定用不用 AI**。
+        #    vision_mode 三档：
+        #    local  = 一律本地零 AI（几何+术语表，不调 Anthropic、不需 API key）；
+        #    auto   = 智能（默认·推荐）：**矢量页→本地零 AI（几何可读）；位图页→AI 看图（本地读不了）**；
+        #    always = 一律 AI 看图（最准最贵）。
+        #    AI 看图只读图面尺寸线、不读文字注记（客户手填尺寸常有误）。
         #    多页并行（QUOTE_VISION_CONCURRENCY，默认4）；system prompt 逐页复用走 ephemeral 缓存。
         maps, warnings = _load_glossary_maps(ctx)
         pages = sorted({p["page"] for p in products})
@@ -176,35 +178,27 @@ def run(ctx) -> dict[str, Any]:
                 recs = [p for p in products if p["page"] == pageno]
                 page_text = d[pageno - 1].get_text()
                 gl_lines = dims.glossary_hits_for_text(page_text, maps)
-                if vmode == "local":
-                    path = "local"
-                elif vmode == "always" or dims.page_needs_vision(recs, raster_pages, pageno):
-                    path = "vision"
-                else:
-                    path = "text"
+                # 先判位图/矢量，再按模式决定用不用 AI（矢量→本地，位图→AI 看图）。
+                kind = dims.page_kind(raster_pages, pageno)
+                path = dims.route_for_kind(kind, vmode)
                 try:
                     if path == "vision":
+                        # 位图页：本地几何量不出，交 AI 看图——只读图面尺寸线、不读文字注记。
                         images, legend = dims.render_vision_images(d, pageno, vision_dir)
                         decision = dims.decide_page(
                             claude, pageno=pageno, records=recs, page_text=page_text,
                             images_png=images, image_legend=legend, glossary_lines=gl_lines,
                         )
-                    elif path == "text":
-                        # 廉价文字路：矢量高置信页，不渲染大图、不发图，只跑一次纯文字调用。
-                        decision = dims.decide_page_text(
-                            claude, pageno=pageno, records=recs, page_text=page_text,
-                            glossary_lines=gl_lines,
-                        )
-                    else:  # local：纯本地零 AI
+                    else:  # local：矢量页本地零 AI（几何量取 W/H + 术语表）
                         decision = dims.decide_page_local(recs, page_text, maps)
                 except Exception as exc:  # noqa: BLE001
                     # 单页处理失败不拖垮整单：该页返回空决策，走⚠兜底（保留骨架、标 PENDING）。
-                    _lbl = {"vision": "视觉", "text": "文字", "local": "本地"}[path]
+                    _lbl = {"vision": "看图", "local": "本地"}[path]
                     decision = dims.PageDecision(
                         products=[], cost_usd=0.0,
                         warnings=[f"第 {pageno} 页{_lbl}处理失败，已跳过、保留骨架待人工核对：{exc}"],
                     )
-                return pageno, recs, decision, path
+                return pageno, recs, decision, path, kind
             finally:
                 d.close()
 
@@ -213,21 +207,21 @@ def run(ctx) -> dict[str, Any]:
         decisions: dict[int, tuple[list[dict[str, Any]], Any]] = {}
         per_page: list[dict[str, Any]] = []
         n_vision = 0
-        n_text = 0
         n_local = 0
+        bitmap_pages: list[int] = []
+        vector_pages: list[int] = []
         done = 0
         ex = ThreadPoolExecutor(max_workers=workers)
         try:
             futs = {ex.submit(_decide_one, pn): pn for pn in pages}
             for fut in as_completed(futs):
-                pageno, recs, decision, path = fut.result()
+                pageno, recs, decision, path, kind = fut.result()
                 decisions[pageno] = (recs, decision)
                 if path == "vision":
                     n_vision += 1
-                elif path == "text":
-                    n_text += 1
                 else:
                     n_local += 1
+                (bitmap_pages if kind == "bitmap" else vector_pages).append(pageno)
                 cost_usd += decision.cost_usd
                 in_tok += decision.input_tokens
                 out_tok += decision.output_tokens
@@ -237,6 +231,7 @@ def run(ctx) -> dict[str, Any]:
                 # 逐页 token/成本明细：让前端能看「每页（单次）」而非只有整单汇总。
                 per_page.append({
                     "page": pageno,
+                    "kind": kind,
                     "path": path,
                     "input_tokens": decision.input_tokens,
                     "output_tokens": decision.output_tokens,
@@ -249,6 +244,8 @@ def run(ctx) -> dict[str, Any]:
         finally:
             ex.shutdown(wait=False, cancel_futures=True)
         per_page.sort(key=lambda x: x["page"])
+        bitmap_pages.sort()
+        vector_pages.sort()
 
         # 按页序合并，保证 Excel 行序稳定（与并行完成先后无关）
         merged_all: list[dict[str, Any]] = []
@@ -306,8 +303,9 @@ def run(ctx) -> dict[str, Any]:
                 "cache_read_input_tokens": cache_read_tok,
                 "cache_creation_input_tokens": cache_write_tok,
                 "vision_calls": n_vision,
-                "text_calls": n_text,
                 "local_calls": n_local,
+                "bitmap_pages": bitmap_pages,
+                "vector_pages": vector_pages,
                 "vision_mode": vmode,
                 "per_page": per_page,
                 "warnings": warnings,

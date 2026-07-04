@@ -130,8 +130,14 @@ def decide_page(
     image_legend: list[str],
     glossary_lines: list[str],
 ) -> PageDecision:
-    """对一页图纸跑视觉判断，返回该页全部品番的确认结果。"""
-    user_text = build_user_text(pageno, records, page_text, glossary_lines, image_legend)
+    """对一页图纸跑视觉判断，返回该页全部品番的确认结果。
+
+    **只看图、不读文字尺寸**（image_only）：客户图上手填/打印的 W/D/H 常有笔误，一律不喂给模型，
+    尺寸只让它从图面最外侧尺寸链读出。仅把品番清单 + 几何量取(measured) + 术语表译法作为辅助。
+    """
+    user_text = build_user_text(
+        pageno, records, page_text, glossary_lines, image_legend, image_only=True
+    )
     # max_tokens 给足：adaptive thinking 会先花一段"思考"额度，复杂/大页（如 47MB 高清扫描页）
     # 若额度太小，会在思考阶段就被截断、来不及吐 JSON → 空输出。16000 给思考+JSON 留足空间。
     result = claude.complete_vision(
@@ -159,22 +165,29 @@ def decide_page(
     )
 
 
-def page_needs_vision(records: list[dict[str, Any]], raster_pages, pageno: int) -> bool:
-    """分流判定：这一页要不要送**视觉**（贵）？还是几何+文字就够（廉价文字路）？
+def page_kind(raster_pages, pageno: int) -> str:
+    """判定一页图纸是**位图**还是**矢量**（分流的唯一依据）。
 
-    成本控制铁律：矢量高置信页 W/H 几何已可靠量出 → 不必再送图给 AI「看」，走纯文字调用即可。
-    仅以下情形才需视觉：光栅/扫描页、无矢量层、几何低置信、或 W/H 任一轴局部疑似/超界。
+    - 位图(bitmap)：光栅页——图纸本体是一张位图（扫描/导出图片），几何引擎量不出尺寸线，
+      本地无法可靠读尺寸 → 需要 AI 看图。
+    - 矢量(vector)：图纸是矢量 CAD，尺寸线可被几何引擎量取 → 本地即可读，无需 AI。
     """
-    if pageno in (raster_pages or []):
-        return True
-    m = (records[0].get("measured") or {}) if records else {}
-    if not m.get("vector_ok") or m.get("confidence") != "high":
-        return True
-    for axis in ("W", "H"):
-        a = m.get(axis) or {}
-        if a.get("overall_value") is None or a.get("suspect_local") or not a.get("extent_ok"):
-            return True
-    return False  # 矢量 + 高置信 + W/H 干净 → 走廉价文字路，不发图
+    return "bitmap" if pageno in (raster_pages or []) else "vector"
+
+
+def route_for_kind(kind: str, vmode: str) -> str:
+    """按用户设定的三档模式，给出该页的处理路径 "local"（零 AI）或 "vision"（AI 看图）。
+
+    - local ：一律本地（零 AI、零成本），拿不准的标 ⚠ 待人工。
+    - always：一律 AI 看图（最准最贵）。
+    - auto（智能·推荐）：**矢量页→本地零 AI；位图页→AI 看图**。
+      即「能本地读的（矢量）绝不花 AI，只有本地读不了的（位图）才用 AI」。
+    """
+    if vmode == "local":
+        return "local"
+    if vmode == "always":
+        return "vision"
+    return "vision" if kind == "bitmap" else "local"
 
 
 def decide_page_text(

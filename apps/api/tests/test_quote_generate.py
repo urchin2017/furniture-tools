@@ -188,7 +188,8 @@ def test_handler_full_pipeline_offline(storage_supabase, monkeypatch):
     monkeypatch.setattr(dims, "decide_page", fake_decide_page)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
 
-    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params())
+    # 全 AI 看图模式：强制走视觉路，验证整条编排（下载→骨架→看图→填表→上传）。
+    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params(vision_mode="always"))
     result = generate.run(ctx)
 
     outputs = storage_supabase.storage.buckets["outputs"]
@@ -220,7 +221,7 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     monkeypatch.setattr(dims, "decide_page", boom)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
 
-    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params())
+    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params(vision_mode="always"))
     result = generate.run(ctx)  # 不抛异常 = 单页失败被兜住
 
     outputs = storage_supabase.storage.buckets["outputs"]
@@ -230,75 +231,59 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     assert any("处理失败" in w for w in summary["warnings"]), "应带失败页警告"
 
 
-def test_page_needs_vision_routing():
-    clean = {"vector_ok": True, "confidence": "high",
-             "W": {"overall_value": 1740, "extent_ok": True, "suspect_local": False},
-             "H": {"overall_value": 2650, "extent_ok": True, "suspect_local": False}}
-    rec = lambda m: [{"measured": m}]  # noqa: E731
-    assert dims.page_needs_vision(rec(clean), [], 2) is False, "矢量高置信+W/H干净 → 走文字路"
-    assert dims.page_needs_vision(rec(clean), [2], 2) is True, "光栅页 → 视觉"
-    assert dims.page_needs_vision(rec({**clean, "vector_ok": False}), [], 2) is True
-    assert dims.page_needs_vision(rec({**clean, "confidence": "low"}), [], 2) is True
-    assert dims.page_needs_vision(rec({**clean, "W": {**clean["W"], "suspect_local": True}}), [], 2) is True
-    assert dims.page_needs_vision(rec({**clean, "H": {**clean["H"], "extent_ok": False}}), [], 2) is True
-    assert dims.page_needs_vision([], [], 2) is True, "无记录 → 保守走视觉"
+def test_page_kind_and_route():
+    # 位图 vs 矢量：只看是否光栅页
+    assert dims.page_kind([2], 2) == "bitmap", "光栅页=位图"
+    assert dims.page_kind([2], 3) == "vector", "非光栅页=矢量"
+    assert dims.page_kind([], 2) == "vector"
+    # 分流：矢量→本地零 AI，位图→AI 看图；local/always 覆盖判定
+    assert dims.route_for_kind("vector", "auto") == "local", "智能模式矢量→本地"
+    assert dims.route_for_kind("bitmap", "auto") == "vision", "智能模式位图→看图"
+    assert dims.route_for_kind("vector", "always") == "vision", "全AI模式矢量也看图"
+    assert dims.route_for_kind("bitmap", "local") == "local", "全本地模式位图也本地"
 
 
-def test_handler_auto_mode_uses_text_path_for_vector_pages(storage_supabase, monkeypatch):
-    """auto 模式：判定为矢量高置信的页走廉价文字路（不发图），不调视觉。"""
+def test_handler_auto_mode_routes_vector_to_local(storage_supabase, monkeypatch):
+    """智能(auto) 模式：矢量页（非光栅）走本地零 AI，绝不调 AI 看图。"""
     class _FakeClaude:
         @classmethod
         def from_env(cls, model_override=None):
             return cls()
 
-    called = {"vision": 0, "text": 0}
-
     def fake_vision(*a, **k):
-        called["vision"] += 1
-        raise AssertionError("矢量高置信页不该走视觉路")
-
-    def fake_text(claude, *, pageno, records, page_text, glossary_lines):
-        called["text"] += 1
-        return PageDecision(products=[_vis(r["row_code"] or "F01") for r in records], cost_usd=0.01)
+        raise AssertionError("矢量页不该走 AI 看图")
 
     monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
-    monkeypatch.setattr(dims, "page_needs_vision", lambda recs, raster, pageno: False)
     monkeypatch.setattr(dims, "decide_page", fake_vision)
-    monkeypatch.setattr(dims, "decide_page_text", fake_text)
 
     result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
-    assert called["text"] >= 1 and called["vision"] == 0, "auto 模式矢量页走文字路"
-    assert result["summary"]["text_calls"] >= 1 and result["summary"]["vision_calls"] == 0
+    assert result["summary"]["local_calls"] >= 1 and result["summary"]["vision_calls"] == 0
+    assert result["summary"]["cost_usd"] == 0.0, "矢量走本地 → 零成本"
+    assert result["summary"]["vector_pages"], "测试 PDF 应判为矢量页"
 
 
 def test_handler_always_mode_forces_vision(storage_supabase, monkeypatch):
-    """always 模式：即便判定不需视觉，也强制走视觉路。"""
+    """always 模式：即便是矢量页，也强制走 AI 看图路。"""
     class _FakeClaude:
         @classmethod
         def from_env(cls, model_override=None):
             return cls()
 
-    called = {"vision": 0, "text": 0}
+    called = {"vision": 0}
 
     def fake_vision(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
         called["vision"] += 1
         return PageDecision(products=[_vis(r["row_code"] or "F01") for r in records], cost_usd=0.02)
 
-    def fake_text(*a, **k):
-        called["text"] += 1
-        raise AssertionError("always 模式不该走文字路")
-
     monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
-    monkeypatch.setattr(dims, "page_needs_vision", lambda *a, **k: False)  # 判定"不需视觉"也无效
     monkeypatch.setattr(dims, "decide_page", fake_vision)
-    monkeypatch.setattr(dims, "decide_page_text", fake_text)
 
     result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1",
                                      params=_params(vision_mode="always")))
-    assert called["vision"] >= 1 and called["text"] == 0, "always 模式强制视觉"
-    assert result["summary"]["vision_calls"] >= 1 and result["summary"]["text_calls"] == 0
+    assert called["vision"] >= 1, "always 模式强制看图"
+    assert result["summary"]["vision_calls"] >= 1 and result["summary"]["local_calls"] == 0
 
 
 def test_handler_cancellation_raises_jobcancelled(storage_supabase, monkeypatch):
@@ -342,6 +327,22 @@ def test_decide_page_local_zero_ai():
     assert "W" not in p["confirm_dims"]            # 几何✕文字一致 → 不⚠
     assert "D" in p["confirm_dims"]                # D 仅文字来源 → ⚠
     assert p["name_cn"] == "柜台" and "防火板" in p["mat_cn"]  # 术语表脚本翻译
+
+
+def test_analyze_pdf_classifies_and_plans(tmp_path):
+    """判断步骤：矢量测试页 → kind=vector、计划 local（零 AI）；always 模式改判 vision。"""
+    from app.modules.quote.analyze import analyze_pdf
+
+    p = tmp_path / "d.pdf"
+    p.write_bytes(_drawing_pdf_bytes())
+
+    out = analyze_pdf(str(p), skip_pages=[], vision_mode="auto")
+    assert out["summary"]["total"] == 1
+    assert out["pages"][0]["kind"] == "vector" and out["pages"][0]["path"] == "local"
+    assert out["summary"]["ai_pages"] == [] and out["summary"]["local_pages"] == [1]
+
+    out2 = analyze_pdf(str(p), skip_pages=[], vision_mode="always")
+    assert out2["pages"][0]["path"] == "vision" and out2["summary"]["ai_pages"] == [1]
 
 
 def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):

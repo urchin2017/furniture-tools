@@ -12,6 +12,16 @@ function fmtTok(n?: number): string {
   return typeof n === "number" ? n.toLocaleString("en-US") : "—";
 }
 
+type VisionMode = "local" | "auto" | "always";
+
+/** 分流原则（与后端 dims.route_for_kind 一致）：矢量→本地零 AI，位图→AI 看图；
+ *  local=全本地、always=全看图。页 kind 固定，切换模式即时本地重算，无需再请求后端。 */
+function routeForKind(kind: string, vmode: VisionMode): "local" | "vision" {
+  if (vmode === "local") return "local";
+  if (vmode === "always") return "vision";
+  return kind === "bitmap" ? "vision" : "local";
+}
+
 /** fetch + 网络错误重试（本机网络抖动）；连不上时给出可操作的中文报错。 */
 async function fetchRetry(url: string, init: RequestInit, tries = 3): Promise<Response> {
   let lastErr: unknown;
@@ -62,11 +72,13 @@ type JobResult = {
     cache_read_input_tokens?: number;
     cache_creation_input_tokens?: number;
     vision_calls?: number;
-    text_calls?: number;
     local_calls?: number;
+    bitmap_pages?: number[];
+    vector_pages?: number[];
     vision_mode?: string;
     per_page?: {
       page: number;
+      kind?: string;
       path: string;
       input_tokens: number;
       output_tokens: number;
@@ -84,7 +96,11 @@ type Job = {
   error: string | null;
 };
 
-type Phase = "idle" | "uploading" | "running" | "done" | "error" | "cancelled";
+/** /api/quote/analyze 返回（判断结果）。 */
+type AnalyzePage = { page: number; kind: "bitmap" | "vector"; path: string; codes: string[]; vector_ok: boolean };
+type Analysis = { pages: AnalyzePage[]; summary: { total: number } };
+
+type Phase = "idle" | "analyzing" | "analyzed" | "running" | "done" | "error" | "cancelled";
 
 export default function QuoteGenerate() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -94,7 +110,7 @@ export default function QuoteGenerate() {
   const [startRow, setStartRow] = useState(18);
   const [lastRow, setLastRow] = useState(50);
   const [requireVisual, setRequireVisual] = useState(false);
-  const [visionMode, setVisionMode] = useState<"local" | "auto" | "always">("auto");
+  const [visionMode, setVisionMode] = useState<VisionMode>("auto");
   const [model, setModel] = useState("claude-sonnet-5");
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -102,6 +118,9 @@ export default function QuoteGenerate() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [pdfKey, setPdfKey] = useState<string | null>(null);
+  const [tplKey, setTplKey] = useState<string | null>(null);
   const [result, setResult] = useState<JobResult | null>(null);
   const [links, setLinks] = useState<Record<string, string>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -113,6 +132,25 @@ export default function QuoteGenerate() {
       pollRef.current = null;
     }
   }
+
+  /** 换文件/改跳过页 → 判断结果作废，退回到「导入并判断」。 */
+  function resetToIdle() {
+    stopPoll();
+    setPhase("idle");
+    setAnalysis(null);
+    setPdfKey(null);
+    setTplKey(null);
+    setResult(null);
+    setLinks({});
+    setJobId(null);
+    setProgress(0);
+    setErr(null);
+  }
+
+  const skipList = skipPages
+    .split(/[,，\s]+/)
+    .filter((s) => /^\d+$/.test(s))
+    .map(Number);
 
   async function onCancel() {
     if (!jobId || cancelling) return;
@@ -191,7 +229,8 @@ export default function QuoteGenerate() {
     }, 2500);
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  // ① 导入并判断：上传两个文件 → 调 /analyze 分页判位图/矢量 → 展示计划。
+  async function onAnalyze(e: React.FormEvent) {
     e.preventDefault();
     if (!pdfFile || !templateFile) {
       setErr("请同时选择图纸 PDF 和报价模板 Excel");
@@ -211,8 +250,7 @@ export default function QuoteGenerate() {
     setErr(null);
     setResult(null);
     setLinks({});
-    setPhase("uploading");
-    setProgress(0);
+    setPhase("analyzing");
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -235,23 +273,50 @@ export default function QuoteGenerate() {
         }
         return (await res.json()).path as string;
       };
-      const pdfKey = await uploadOne(pdfFile);
-      const tplKey = await uploadOne(templateFile);
+      const pKey = await uploadOne(pdfFile);
+      const tKey = await uploadOne(templateFile);
 
+      const res = await fetchRetry(`${API}/api/quote/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pdf_path: pKey, skip_pages: skipList, vision_mode: visionMode }),
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`判断失败（HTTP ${res.status}）：${detail}`);
+      }
+      const data: Analysis = await res.json();
+      setPdfKey(pKey);
+      setTplKey(tKey);
+      setAnalysis(data);
+      setPhase("analyzed");
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : String(e2));
+      setPhase("error");
+    }
+  }
+
+  // ② 确认并生成：用已上传的 key 建生成任务（不再重传文件）。
+  async function onGenerate() {
+    if (!pdfKey || !tplKey) return;
+    setErr(null);
+    setResult(null);
+    setLinks({});
+    setProgress(0);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("登录状态失效，请重新登录");
       const params = {
         pdf_path: pdfKey,
         template_path: tplKey,
         project: project.trim(),
-        skip_pages: skipPages
-          .split(/[,，\s]+/)
-          .filter((s) => /^\d+$/.test(s))
-          .map(Number),
+        skip_pages: skipList,
         start_row: startRow,
         last_row: lastRow,
         require_visual: requireVisual,
-        // AI 模式：local=纯本地零 AI / auto=省钱分流（默认）/ always=逐页视觉最准。
         vision_mode: visionMode,
-        model,  // 纯本地模式下后端忽略此项
+        model, // 纯本地模式下后端忽略此项
       };
       const res = await fetchRetry(`${API}/api/jobs`, {
         method: "POST",
@@ -273,18 +338,25 @@ export default function QuoteGenerate() {
     }
   }
 
-  const busy = phase === "uploading" || phase === "running";
+  const busy = phase === "analyzing" || phase === "running";
   const xlsxFile = result?.files.find((f) => f.name.endsWith(".xlsx"));
   const checkPngs = result?.files.filter((f) => f.content_type === "image/png") ?? [];
+
+  // 判断计划：按当前模式即时重算（页 kind 固定，切模式不必再请求后端）。
+  const planPages = analysis?.pages.map((p) => ({ ...p, planned: routeForKind(p.kind, visionMode) })) ?? [];
+  const aiCount = planPages.filter((p) => p.planned === "vision").length;
+  const localCount = planPages.filter((p) => p.planned === "local").length;
+  const bitmapCount = planPages.filter((p) => p.kind === "bitmap").length;
+  const vectorCount = planPages.filter((p) => p.kind === "vector").length;
 
   return (
     <div className="space-y-4 max-w-4xl">
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-semibold text-ink">报价单生成</h1>
-        <Hint text="上传 PDF 技术图纸 + Excel 报价模板 → 自动提取产品、AI 看图定「外形/全体寸法」、填表、渲染验证。尺寸拿不准的行会标 ⚠ 淡黄高亮，务必人工复核后再发客户。" />
+        <Hint text="流程：① 上传图纸 PDF + 报价模板 → ② 系统判断每页是位图还是矢量并告知计划 → ③ 确认后生成。矢量页用本地几何零 AI 读尺寸；位图页交 AI 看图（只读图面尺寸线，不信文字注记）。尺寸拿不准的行标 ⚠ 淡黄高亮，务必人工复核后再发客户。" />
       </div>
 
-      <form onSubmit={onSubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
+      <form onSubmit={onAnalyze} className="bg-surface border border-border rounded-xl p-6 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label
             className={`flex w-full items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm ${
@@ -299,7 +371,10 @@ export default function QuoteGenerate() {
               type="file"
               accept=".pdf,application/pdf"
               disabled={busy}
-              onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setPdfFile(e.target.files?.[0] ?? null);
+                if (phase !== "idle") resetToIdle();
+              }}
               className="hidden"
             />
           </label>
@@ -316,7 +391,10 @@ export default function QuoteGenerate() {
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               disabled={busy}
-              onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setTemplateFile(e.target.files?.[0] ?? null);
+                if (phase !== "idle") resetToIdle();
+              }}
               className="hidden"
             />
           </label>
@@ -337,13 +415,16 @@ export default function QuoteGenerate() {
           </label>
           <label className="block text-sm">
             <span className="inline-flex items-center gap-1 text-ink">
-              跳过页 <Hint text="封面等无品番的页码，逗号分隔（默认 1）" />
+              跳过页 <Hint text="封面等无品番的页码，逗号分隔（默认 1）。改动后需重新判断。" />
             </span>
             <input
               type="text"
               value={skipPages}
               disabled={busy}
-              onChange={(e) => setSkipPages(e.target.value)}
+              onChange={(e) => {
+                setSkipPages(e.target.value);
+                if (phase === "analyzed") resetToIdle();
+              }}
               placeholder="1"
               className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-ink"
             />
@@ -384,21 +465,21 @@ export default function QuoteGenerate() {
         <label className="inline-flex items-center gap-2 text-sm text-ink">
           <span className="inline-flex items-center gap-1">
             AI 模式
-            <Hint text="纯本地（零 AI）：完全不调 Anthropic、零成本——几何量 W/H + 文字层提 D/品名/材质 + 术语表翻译，拿不准的标 ⚠ 待人工核对。只适合能提取文字的矢量 PDF。 省钱（默认）：矢量页走廉价文字调用，扫描/拿不准的页才用视觉，成本约低 8 倍。 高精度：每页都让 AI 看图核对，最准最贵最慢，关键报价用。" />
+            <Hint text="智能（推荐）：矢量页用本地几何零 AI 读尺寸、位图页才用 AI 看图——能不用 AI 就不用。 纯本地（零 AI）：所有页都本地读，完全不调 AI、零成本，拿不准的标 ⚠。 全部看图：每页都让 AI 看图，最准最贵最慢，关键报价用。" />
           </span>
           <select
             value={visionMode}
             disabled={busy}
-            onChange={(e) => setVisionMode(e.target.value as "local" | "auto" | "always")}
+            onChange={(e) => setVisionMode(e.target.value as VisionMode)}
             className="rounded-lg border border-border bg-bg px-2 py-1.5 text-ink"
           >
+            <option value="auto">智能（推荐 · 矢量本地 / 位图看图）</option>
             <option value="local">纯本地（零 AI · 免费）</option>
-            <option value="auto">省钱（推荐 · 自动分流）</option>
-            <option value="always">高精度（逐页看图）</option>
+            <option value="always">全部看图（逐页 AI · 最准最贵）</option>
           </select>
           <span className="inline-flex items-center gap-1 ml-2">
             AI 模型
-            <Hint text="用到 AI 时选哪个模型（纯本地模式不调 AI，此项无效）。 Sonnet 5（推荐）：读尺寸准、价格适中。 Haiku 4.5：约 1/3 价、更快，但更容易读错尺寸——省钱首选是「纯本地/省钱」模式而非换 Haiku。 Opus 4.8：最准最贵，关键报价用。" />
+            <Hint text="用到 AI 时选哪个模型（纯本地模式不调 AI，此项无效）。 Sonnet 5（推荐）：读尺寸准、价格适中。 Haiku 4.5：约 1/3 价、更快，但更容易读错尺寸。 Opus 4.8：最准最贵，关键报价用。" />
           </span>
           <select
             value={model}
@@ -411,24 +492,103 @@ export default function QuoteGenerate() {
             <option value="claude-opus-4-8">Opus 4.8（最准最贵）</option>
           </select>
         </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-lg bg-brand text-brand-ink px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          {phase === "uploading" ? "上传中…" : phase === "running" ? "生成中…" : "开始生成"}
-        </button>
+        {phase !== "analyzed" && (
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded-lg bg-brand text-brand-ink px-4 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {phase === "analyzing" ? "上传并判断中…" : "导入并判断"}
+          </button>
+        )}
       </form>
 
-      {busy && (
+      {/* 判断结果 → 确认后生成 */}
+      {phase === "analyzed" && analysis && (
+        <div className="bg-surface border border-border rounded-xl p-6 space-y-3">
+          <h2 className="font-medium text-ink">判断结果 · 共 {analysis.summary.total} 页</h2>
+          <div className="text-sm text-ink">
+            矢量 <b>{vectorCount}</b> 页 · 位图 <b>{bitmapCount}</b> 页。 本次将：
+            {localCount > 0 && <>本地零 AI 读 <b>{localCount}</b> 页；</>}
+            {aiCount > 0 ? (
+              <>
+                AI 看图读 <b>{aiCount}</b> 页（预计 {aiCount} 次 AI 调用
+                {visionMode !== "local" && <> · 用 {model.replace("claude-", "")}</>}）。
+              </>
+            ) : (
+              <>全部本地读，<b>零 AI 调用、零成本</b>。</>
+            )}
+          </div>
+          {aiCount === 0 && visionMode === "auto" && bitmapCount === 0 && (
+            <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+              全是矢量图纸 → 完全走本地几何，无需 AI。
+            </div>
+          )}
+          {bitmapCount > 0 && visionMode === "local" && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+              有 {bitmapCount} 页是位图，纯本地模式下几何量不出尺寸，这些页会标 ⚠ 待人工核对。
+              要让 AI 看图读，请把模式切到「智能」或「全部看图」。
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted border-b border-border">
+                  <th className="py-1.5 pr-3">页</th>
+                  <th className="py-1.5 pr-3">类型</th>
+                  <th className="py-1.5 pr-3">处理方式</th>
+                  <th className="py-1.5">识别到的品番</th>
+                </tr>
+              </thead>
+              <tbody>
+                {planPages.map((p) => (
+                  <tr key={p.page} className="border-b border-border/50 text-ink">
+                    <td className="py-1.5 pr-3">{p.page}</td>
+                    <td className="py-1.5 pr-3">
+                      {p.kind === "bitmap" ? (
+                        <span className="rounded bg-amber-100 px-1.5 text-amber-900">位图</span>
+                      ) : (
+                        <span className="rounded bg-sky-100 px-1.5 text-sky-900">矢量</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      {p.planned === "vision" ? "AI 看图" : "本地（零 AI）"}
+                    </td>
+                    <td className="py-1.5 text-muted">{p.codes.length ? p.codes.join("、") : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onGenerate}
+              className="rounded-lg bg-brand text-brand-ink px-4 py-2 text-sm font-medium"
+            >
+              确认并生成
+            </button>
+            <button
+              type="button"
+              onClick={resetToIdle}
+              className="rounded-lg border border-border px-3 py-2 text-sm text-ink hover:bg-bg"
+            >
+              重新选择
+            </button>
+            <span className="text-xs text-muted">上方可切换 AI 模式，计划会即时更新。</span>
+          </div>
+        </div>
+      )}
+
+      {phase === "running" && (
         <div className="bg-surface border border-border rounded-xl p-6 space-y-3">
           <div className="text-sm text-ink">
-            {phase === "uploading" ? "正在上传文件…" : `正在生成（骨架 → AI 看图定尺寸 → 填表 → 渲染验证）… ${progress}%`}
+            正在生成（骨架 → 定尺寸 → 填表 → 渲染验证）… {progress}%
           </div>
           <div className="h-2 rounded bg-bg overflow-hidden">
             <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
           </div>
-          {phase === "running" && jobId && (
+          {jobId && (
             <button
               type="button"
               onClick={onCancel}
@@ -443,7 +603,7 @@ export default function QuoteGenerate() {
 
       {phase === "cancelled" && (
         <div className="border border-border bg-bg text-muted rounded-xl p-4 text-sm">
-          已取消生成。可重新选择参数后再次「开始生成」。（正在进行中的那一页 AI 调用会自然结束，不再继续后续页。）
+          已取消生成。可重新选择参数后再次「导入并判断」。（正在进行中的那一页 AI 调用会自然结束，不再继续后续页。）
         </div>
       )}
 
@@ -472,13 +632,12 @@ export default function QuoteGenerate() {
               </div>
               <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-muted">
                 <dt>模型</dt>
-                <dd className="text-ink">{result.summary.model || "—"}</dd>
+                <dd className="text-ink">{result.summary.model || "—（本次未用 AI）"}</dd>
                 {result.summary.vision_calls != null && (
                   <>
                     <dt>分流</dt>
                     <dd className="text-ink">
-                      视觉 {result.summary.vision_calls} 页 / 文字 {result.summary.text_calls ?? 0} 页
-                      {(result.summary.local_calls ?? 0) > 0 && ` / 本地 ${result.summary.local_calls} 页（零 AI）`}
+                      AI 看图 {result.summary.vision_calls} 页 / 本地 {result.summary.local_calls ?? 0} 页（零 AI）
                     </dd>
                   </>
                 )}
@@ -518,7 +677,7 @@ export default function QuoteGenerate() {
                         {result.summary.per_page.map((p) => (
                           <tr key={p.page} className="text-ink">
                             <td className="pr-3">{p.page}</td>
-                            <td className="pr-3">{p.path === "vision" ? "视觉" : p.path === "local" ? "本地" : "文字"}</td>
+                            <td className="pr-3">{p.path === "vision" ? "AI 看图" : "本地"}</td>
                             <td className="pr-3">{fmtTok(p.input_tokens)}</td>
                             <td className="pr-3">{fmtTok(p.output_tokens)}</td>
                             <td>US${p.cost_usd}</td>
@@ -531,7 +690,7 @@ export default function QuoteGenerate() {
               )}
               {result.summary.raster_pages.length > 0 && (
                 <div className="text-muted mt-2">
-                  光栅图纸页：{result.summary.raster_pages.join(", ")}（几何测量不可用，已走看图协议）
+                  位图图纸页：{result.summary.raster_pages.join(", ")}（几何测量不可用，已走 AI 看图）
                 </div>
               )}
             </div>

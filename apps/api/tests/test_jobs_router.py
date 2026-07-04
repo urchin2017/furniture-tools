@@ -50,3 +50,30 @@ def test_create_job_rejects_unknown_feature(fake_supabase):
         assert resp.status_code == 400
     finally:
         app.dependency_overrides.clear()
+
+
+def test_cancel_job_sets_cancelled_and_guards(fake_supabase):
+    app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_supabase] = lambda: fake_supabase
+    try:
+        client = TestClient(app)
+        # running 任务 → 取消置 cancelled
+        fake_supabase.table("jobs").insert(
+            {"id": "j-run", "user_id": "user-1", "feature": "quote_generate", "status": "running"}
+        ).execute()
+        r = client.post("/api/jobs/j-run/cancel")
+        assert r.status_code == 200 and r.json()["status"] == "cancelled"
+
+        # 已完成任务 → 取消是 no-op（不改 done）
+        fake_supabase.table("jobs").insert(
+            {"id": "j-done", "user_id": "user-1", "feature": "quote_generate", "status": "done"}
+        ).execute()
+        assert client.post("/api/jobs/j-done/cancel").json()["status"] == "done"
+
+        # 别人的任务 → 404（不泄露、不可取消）
+        fake_supabase.table("jobs").insert(
+            {"id": "j-other", "user_id": "user-2", "feature": "quote_generate", "status": "running"}
+        ).execute()
+        assert client.post("/api/jobs/j-other/cancel").status_code == 404
+    finally:
+        app.dependency_overrides.clear()

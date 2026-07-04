@@ -32,6 +32,8 @@ from glossary import GlossaryClient
 from netretry import with_retry
 from skills.drawing_to_quotation import build_scaffold, fill_quote_build, render_xlsx
 
+from app.tasks.runner import JobCancelled
+
 from . import dims
 
 _CONTENT_TYPES = {
@@ -197,10 +199,12 @@ def run(ctx) -> dict[str, Any]:
         n_pages = len(pages)
         workers = max(1, min(int(os.environ.get("QUOTE_VISION_CONCURRENCY", "4")), n_pages or 1))
         decisions: dict[int, tuple[list[dict[str, Any]], Any]] = {}
+        per_page: list[dict[str, Any]] = []
         n_vision = 0
         n_text = 0
         done = 0
-        with ThreadPoolExecutor(max_workers=workers) as ex:
+        ex = ThreadPoolExecutor(max_workers=workers)
+        try:
             futs = {ex.submit(_decide_one, pn): pn for pn in pages}
             for fut in as_completed(futs):
                 pageno, recs, decision, used_vision = fut.result()
@@ -215,8 +219,21 @@ def run(ctx) -> dict[str, Any]:
                 cache_read_tok += decision.cache_read_input_tokens
                 cache_write_tok += decision.cache_creation_input_tokens
                 model = decision.model or model
+                # 逐页 token/成本明细：让前端能看「每页（单次）」而非只有整单汇总。
+                per_page.append({
+                    "page": pageno,
+                    "path": "vision" if used_vision else "text",
+                    "input_tokens": decision.input_tokens,
+                    "output_tokens": decision.output_tokens,
+                    "cost_usd": round(decision.cost_usd, 4),
+                })
                 done += 1
                 ctx.report_progress(15 + int(60 * done / n_pages))
+                if ctx.is_cancelled():  # 用户中途取消 → 立即停下（未开始的页丢弃、进行中的自然结束）
+                    raise JobCancelled()
+        finally:
+            ex.shutdown(wait=False, cancel_futures=True)
+        per_page.sort(key=lambda x: x["page"])
 
         # 按页序合并，保证 Excel 行序稳定（与并行完成先后无关）
         merged_all: list[dict[str, Any]] = []
@@ -276,6 +293,7 @@ def run(ctx) -> dict[str, Any]:
                 "vision_calls": n_vision,
                 "text_calls": n_text,
                 "vision_mode": vmode,
+                "per_page": per_page,
                 "warnings": warnings,
                 "products": [
                     {k: p.get(k) for k in ("row_code", "page", "W", "D", "H", "qty", "dim_source", "confirm_dims")}

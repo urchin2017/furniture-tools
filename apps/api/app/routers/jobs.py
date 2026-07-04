@@ -89,3 +89,23 @@ def get_job(
     if job["user_id"] != user.id and user.role != "admin":
         raise HTTPException(status.HTTP_404_NOT_FOUND, "任务不存在")
     return job
+
+
+@router.post("/{job_id}/cancel", response_model=JobOut)
+def cancel_job(
+    job_id: str,
+    user: CurrentUser = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase),
+) -> dict[str, Any]:
+    """把 status 置 cancelled；后台任务在页与页之间读到后即刻停下（见 runner.JobContext）。
+    已结束（done/error/cancelled）的任务直接返回，不改。"""
+    rows = supabase.table("jobs").select("*").eq("id", job_id).limit(1).execute().data
+    if not rows:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "任务不存在")
+    job = rows[0]
+    if job["user_id"] != user.id and user.role != "admin":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "任务不存在")
+    if job["status"] in ("queued", "running"):
+        supabase.table("jobs").update({"status": "cancelled"}).eq("id", job_id).execute()
+        job["status"] = "cancelled"
+    return job

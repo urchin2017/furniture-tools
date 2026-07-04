@@ -62,6 +62,15 @@ type JobResult = {
     cache_read_input_tokens?: number;
     cache_creation_input_tokens?: number;
     vision_calls?: number;
+    text_calls?: number;
+    vision_mode?: string;
+    per_page?: {
+      page: number;
+      path: string;
+      input_tokens: number;
+      output_tokens: number;
+      cost_usd: number;
+    }[];
     warnings: string[];
     products: ProductRow[];
   };
@@ -74,7 +83,7 @@ type Job = {
   error: string | null;
 };
 
-type Phase = "idle" | "uploading" | "running" | "done" | "error";
+type Phase = "idle" | "uploading" | "running" | "done" | "error" | "cancelled";
 
 export default function QuoteGenerate() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -88,6 +97,8 @@ export default function QuoteGenerate() {
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<JobResult | null>(null);
   const [links, setLinks] = useState<Record<string, string>>({});
@@ -99,6 +110,24 @@ export default function QuoteGenerate() {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
+  }
+
+  async function onCancel() {
+    if (!jobId || cancelling) return;
+    setCancelling(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      await fetchRetry(`${API}/api/jobs/${jobId}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // 即便取消请求失败，也停止本地轮询、回到可重来状态（后端任务读到 cancelled 后会自行停）
+    }
+    stopPoll();
+    setPhase("cancelled");
+    setCancelling(false);
   }
 
   async function signLinks(files: JobFile[]) {
@@ -145,6 +174,9 @@ export default function QuoteGenerate() {
           stopPoll();
           setErr(job.error || "任务执行失败");
           setPhase("error");
+        } else if (job.status === "cancelled") {
+          stopPoll();
+          setPhase("cancelled");
         }
       } catch (e) {
         const fatal = typeof e === "object" && e !== null && (e as { fatal?: boolean }).fatal;
@@ -228,6 +260,8 @@ export default function QuoteGenerate() {
         throw new Error(`创建任务失败（HTTP ${res.status}）：${detail}`);
       }
       const job: Job = await res.json();
+      setJobId(job.id);
+      setCancelling(false);
       setPhase("running");
       startPoll(job.id);
     } catch (e2) {
@@ -364,13 +398,29 @@ export default function QuoteGenerate() {
       </form>
 
       {busy && (
-        <div className="bg-surface border border-border rounded-xl p-6 space-y-2">
+        <div className="bg-surface border border-border rounded-xl p-6 space-y-3">
           <div className="text-sm text-ink">
             {phase === "uploading" ? "正在上传文件…" : `正在生成（骨架 → AI 看图定尺寸 → 填表 → 渲染验证）… ${progress}%`}
           </div>
           <div className="h-2 rounded bg-bg overflow-hidden">
             <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
           </div>
+          {phase === "running" && jobId && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={cancelling}
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-ink hover:bg-bg disabled:opacity-50"
+            >
+              {cancelling ? "取消中…" : "取消生成"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {phase === "cancelled" && (
+        <div className="border border-border bg-bg text-muted rounded-xl p-4 text-sm">
+          已取消生成。可重新选择参数后再次「开始生成」。（正在进行中的那一页 AI 调用会自然结束，不再继续后续页。）
         </div>
       )}
 
@@ -402,13 +452,16 @@ export default function QuoteGenerate() {
                 <dd className="text-ink">{result.summary.model || "—"}</dd>
                 {result.summary.vision_calls != null && (
                   <>
-                    <dt>看图调用次数</dt>
-                    <dd className="text-ink">{result.summary.vision_calls} 次（每页一次）</dd>
+                    <dt>AI 调用</dt>
+                    <dd className="text-ink">
+                      视觉 {result.summary.vision_calls} 页
+                      {result.summary.text_calls != null && ` / 文字 ${result.summary.text_calls} 页（省钱）`}
+                    </dd>
                   </>
                 )}
-                <dt>输入 tokens</dt>
+                <dt>输入 tokens（累计）</dt>
                 <dd className="text-ink">{fmtTok(result.summary.input_tokens)}</dd>
-                <dt>输出 tokens</dt>
+                <dt>输出 tokens（累计）</dt>
                 <dd className="text-ink">{fmtTok(result.summary.output_tokens)}</dd>
                 {(result.summary.cache_read_input_tokens ?? 0) +
                   (result.summary.cache_creation_input_tokens ?? 0) >
@@ -424,6 +477,35 @@ export default function QuoteGenerate() {
                 <dt className="font-medium text-ink">合计成本</dt>
                 <dd className="font-medium text-ink">US${result.summary.cost_usd}</dd>
               </dl>
+              {result.summary.per_page && result.summary.per_page.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-muted mb-1">每页明细（单次 token / 成本）</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-muted">
+                          <th className="pr-3 font-normal">页</th>
+                          <th className="pr-3 font-normal">方式</th>
+                          <th className="pr-3 font-normal">输入</th>
+                          <th className="pr-3 font-normal">输出</th>
+                          <th className="font-normal">成本</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.summary.per_page.map((p) => (
+                          <tr key={p.page} className="text-ink">
+                            <td className="pr-3">{p.page}</td>
+                            <td className="pr-3">{p.path === "vision" ? "视觉" : "文字"}</td>
+                            <td className="pr-3">{fmtTok(p.input_tokens)}</td>
+                            <td className="pr-3">{fmtTok(p.output_tokens)}</td>
+                            <td>US${p.cost_usd}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               {result.summary.raster_pages.length > 0 && (
                 <div className="text-muted mt-2">
                   光栅图纸页：{result.summary.raster_pages.join(", ")}（几何测量不可用，已走看图协议）

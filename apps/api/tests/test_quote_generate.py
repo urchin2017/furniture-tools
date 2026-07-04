@@ -197,6 +197,8 @@ def test_handler_full_pipeline_offline(storage_supabase, monkeypatch):
     assert result["summary"]["rows"] == 1
     assert result["summary"]["unconfirmed"] == [] and result["summary"]["missing"] == []
     assert result["summary"]["cost_usd"] == pytest.approx(0.02)
+    pp = result["summary"]["per_page"]
+    assert pp and all({"page", "path", "input_tokens", "cost_usd"} <= set(e) for e in pp), "应含逐页明细"
     assert result["files"][0]["display_name"].startswith("御見積書_测试项目")
     assert any("products.json" in k for k in outputs)
     # 本机无 LibreOffice → 渲染验证降级为 warning 而不是整个任务失败
@@ -297,6 +299,28 @@ def test_handler_always_mode_forces_vision(storage_supabase, monkeypatch):
                                      params=_params(vision_mode="always")))
     assert called["vision"] >= 1 and called["text"] == 0, "always 模式强制视觉"
     assert result["summary"]["vision_calls"] >= 1 and result["summary"]["text_calls"] == 0
+
+
+def test_handler_cancellation_raises_jobcancelled(storage_supabase, monkeypatch):
+    """任务被置 cancelled 后，管线在页间检查到即抛 JobCancelled（run_job 会据此收尾）。"""
+    from app.tasks.runner import JobCancelled
+
+    class _FakeClaude:
+        @classmethod
+        def from_env(cls):
+            return cls()
+
+    def fake_decide(*a, **k):
+        return PageDecision(products=[_vis("F01")], cost_usd=0.0)
+
+    monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
+    monkeypatch.setattr(dims, "decide_page", fake_decide)
+    monkeypatch.setattr(dims, "decide_page_text", fake_decide)
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+    storage_supabase.table("jobs").update({"status": "cancelled"}).eq("id", "job-q1").execute()
+
+    with pytest.raises(JobCancelled):
+        generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
 
 
 def test_handler_rejects_foreign_paths(storage_supabase):

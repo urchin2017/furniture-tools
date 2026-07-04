@@ -327,6 +327,24 @@ def test_whitefill_data_rows_solid_white(footer_template, blank_pdf, tmp_path):
         assert _fill_rgb(ws[f"I{r}"]) is None, f"I{r} 数量列应无填充"
 
 
+def test_row_height_never_shorter_than_image(footer_template, blank_pdf, tmp_path):
+    """回归：材质文字很短的图纸（如 SEKI）行高不能矮于参考写真图片，否则图片纵向溢出跨行。
+    行高应取 max(文字所需, 图片所需下限)。"""
+    import skills.drawing_to_quotation.fill_quote as fq
+
+    img_floor = round((fq.IMG_H + 2 * 8) * 3 / 4, 1)  # = (139+16)*0.75 = 116.2pt
+    # 材质极短（1 条短词）→ 文字驱动行高本会 < img_floor
+    prods = _mk_products(2)
+    for p in prods:
+        p["mat_jp"], p["mat_cn"] = [], []
+        p["note_jp"], p["note_cn"] = "", ""
+    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
+    h = ws.row_dimensions[START_ROW].height
+    assert h >= img_floor, f"行高 {h}pt 不应矮于图片下限 {img_floor}pt"
+    # 且行像素高 ≥ 图片像素高（图片能整张容下）
+    assert int(h * 4 / 3) >= fq.IMG_H
+
+
 def test_whitefill_yellow_overrides_on_flagged_row(footer_template, blank_pdf, tmp_path):
     """⚠行 B/N 淡黄覆盖白底，其余列仍白；I 列仍无填充；未标记行全白。"""
     prods = _mk_products(2)

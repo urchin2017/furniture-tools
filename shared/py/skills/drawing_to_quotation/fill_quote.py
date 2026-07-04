@@ -164,11 +164,16 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
     unconfirmed, missing = audit(products, require_visual)
 
     doc = fitz.open(pdf)
-    # 统一行高 = E列最多视觉行数 × 行距 + 留白
+    # 统一行高 = max(E列文字所需高, 图片所需高)。
+    # 只按 E 列材质文字定高时，材质很短的图纸（如 SEKI，本地提取无材质文字）行会矮到
+    # 76pt，而参考写真图片固定 139px≈116pt → 图片纵向溢出、跨行叠到下一行。故取二者较大值，
+    # 保证每行至少能整张容下图片（上下各留 IMG_PAD 像素）。
+    IMG_PAD = 8
+    img_row_h = round((IMG_H + 2 * IMG_PAD) * 3 / 4, 1)   # 图片纵向所需最小行高(pt)
     max_e = max(vlines(cell_E(p.get('mat_jp'), p.get('mat_cn')), CPL_E) for p in products)
-    row_h = round(max_e * LINE_PT + PAD_PT, 1)
+    row_h = max(round(max_e * LINE_PT + PAD_PT, 1), img_row_h)
     row_px = int(row_h * 4 / 3); row_off = max(0, (row_px - IMG_H) // 2)
-    print(f'E列最多视觉行={max_e}  统一行高={row_h}pt  图片row_off={row_off}px')
+    print(f'E列最多视觉行={max_e}  统一行高={row_h}pt（图片下限={img_row_h}pt）  图片row_off={row_off}px')
 
     wb = load_workbook(template); ws = wb.active
     if project:

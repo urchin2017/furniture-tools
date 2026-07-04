@@ -113,6 +113,54 @@ def _mark_duplicate_codes(products: list[dict[str, Any]]) -> None:
             p["note_cn"] = ((p.get("note_cn") or "") + f"\n品番{code}重复使用·待确认").strip()
 
 
+def _missing_fields(p: dict[str, Any]) -> list[str]:
+    """一条记录缺哪些必填字段（材质/品名/尺寸/数量）。"""
+    miss = []
+    if not (p.get("mat_jp") or p.get("mat_cn")):
+        miss.append("材质")
+    if not (p.get("name_jp") or p.get("name_cn")):
+        miss.append("品名")
+    if any(p.get(k) in (None, "", 0) for k in ("W", "D", "H")):
+        miss.append("尺寸")
+    if p.get("qty") in (None, "", 0):
+        miss.append("数量")
+    return miss
+
+
+def _completeness_gaps(products: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """出单前自检：逐行列出仍缺的必填字段（供说明文件 + 前端提示，绝不塞进 Excel）。"""
+    gaps = []
+    for i, p in enumerate(products, 1):
+        miss = _missing_fields(p)
+        if miss:
+            gaps.append({"row": i, "row_code": p.get("row_code") or "(空品番)",
+                         "page": p.get("page"), "missing": miss})
+    return gaps
+
+
+def _build_spec_notes(project: str, products: list[dict[str, Any]],
+                      completeness: list[dict[str, Any]]) -> str:
+    """说明文件正文：AI/本地提取过程信息 + 逐行复核提示 + 完整性自检。**内容不进 Excel。**"""
+    L = [f"御見積書 生成说明 · {project or '(未命名)'}",
+         "本文件记录提取过程信息与逐项复核提示；这些内容不进 Excel 报价单，仅供内部核对。", ""]
+    L.append(f"一、完整性自检：共 {len(products)} 行。" +
+             (f"以下 {len(completeness)} 行仍有缺项，需人工补齐：" if completeness else "所有必填字段（材质/品名/尺寸/数量）均已填写。"))
+    for g in completeness:
+        L.append(f"    第{g['row']}行 {g['row_code']}（第{g['page']}页）：缺 {'/'.join(g['missing'])}")
+    L += ["", "二、逐行明细（尺寸来源 / 需复核维 / 依据 / 提取备注）："]
+    for i, p in enumerate(products, 1):
+        code = p.get("row_code") or "(空品番)"
+        conf = "/".join(p.get("confirm_dims") or []) or "无"
+        ev = (p.get("dim_evidence") or "").strip() or "—"
+        note = " ".join(x for x in [(p.get("note_jp") or "").strip(),
+                                    (p.get("note_cn") or "").strip()] if x) or "—"
+        mats = "、".join(p.get("mat_jp") or []) or "—"
+        L.append(f"    第{i}行 {code} p{p.get('page')}｜W={p.get('W')} D={p.get('D')} "
+                 f"H={p.get('H')} 数量={p.get('qty')}｜材质={mats}｜来源={p.get('dim_source')} "
+                 f"需复核={conf}｜依据={ev}｜备注={note}")
+    return "\n".join(L)
+
+
 def run(ctx) -> dict[str, Any]:
     params = ctx.params or {}
     pdf_key = params.get("pdf_path") or ""
@@ -280,12 +328,23 @@ def run(ctx) -> dict[str, Any]:
             warnings.append(f"渲染验证跳过（LibreOffice 不可用或转换失败）：{exc}")
         ctx.report_progress(93)
 
+        # 生成前最终自检：逐行核对必填字段（材质/品名/尺寸/数量）是否有遗漏，写进说明文件。
+        completeness = _completeness_gaps(products)
+        # 说明文件：AI/本地提取的过程信息、逐项复核提示——**这些不进 Excel**，只放这里。
+        notes_name = f"说明_{project or '報価'}_{today}.txt"
+        notes_path = os.path.join(workdir, notes_name)
+        with open(notes_path, "w", encoding="utf-8") as f:
+            f.write(_build_spec_notes(project, products, completeness))
+
         # 上传 outputs 桶（key 用 ASCII，中文名放 display_name 由前端下载时还原）
         prefix = f"{user_id}/{ctx.job_id}"
         files = [_upload(ctx, "outputs", f"{prefix}/{_safe_ascii(display_name, 'quote.xlsx')}", out_xlsx)]
         files[0]["display_name"] = display_name
         for png in check_pngs:
             files.append(_upload(ctx, "outputs", f"{prefix}/check/{os.path.basename(png)}", png))
+        notes_file = _upload(ctx, "outputs", f"{prefix}/{_safe_ascii(notes_name, 'notes.txt')}", notes_path)
+        notes_file["display_name"] = notes_name
+        files.append(notes_file)
         files.append(_upload(ctx, "outputs", f"{prefix}/products.json", json_path))
 
         return {
@@ -296,6 +355,7 @@ def run(ctx) -> dict[str, Any]:
                 "raster_pages": raster_pages,
                 "unconfirmed": fill_summary["unconfirmed"],
                 "missing": fill_summary["missing"],
+                "completeness_gaps": completeness,
                 "cost_usd": round(cost_usd, 4),
                 "model": model,
                 "input_tokens": in_tok,

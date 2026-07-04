@@ -43,7 +43,7 @@ def fix_terms(s):
     for a, b in GLOSSARY:
         s = s.replace(a, b)
     return s
-HL_FILL = PatternFill("solid", fgColor="FFFFF2CC")   # 待确认项淡黄高亮
+HL_FILL = PatternFill("solid", fgColor="FFFFFBEB")   # 不确定单格·极淡黄高亮（比旧 F2CC 更淡）
 WHITE_FILL = PatternFill("solid", fgColor="FFFFFFFF")  # 数据行显式纯白（防某些查看器把“无填充”渲染成灰）
 
 
@@ -225,21 +225,27 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
         code = p.get('row_code', '')
         w, d, h = p.get('W'), p.get('D'), p.get('H')
         qty = p.get('qty')
-        notejp, notecn = p.get('note_jp', ''), p.get('note_cn', '')
         ws.row_dimensions[r].height = row_h
-        # 先整行刷纯白（黄色⚠高亮随后覆盖 B/N，数量列 I 随后置 NO_FILL 去底色）
+        # 先整行刷纯白（不确定的单格随后覆盖淡黄；数量列 I 随后按情况置 NO_FILL/淡黄）
         for _c in 'ABCDEFGHIJKLMN':
             ws[f'{_c}{r}'].fill = WHITE_FILL
 
-        # 待确认判定：备考含要確認/重複 / W·D·H 缺失 / 尺寸未视觉确认
-        flag = (any(k in (notejp or '') for k in ('要確認', '重複'))
-                or any(k in (notecn or '') for k in ('待确认', '重复'))
-                or any(v in (None, '', 0) for v in (w, d, h))
-                or p.get('dim_source') not in ('visual','geometry')
-                or not (p.get('dim_evidence') or '').strip())
+        # 不确定判定（只影响“单格淡黄 + 备注极简标记”，不再整行/品番高亮、不再加 ⚠ 前缀）：
+        #   尺寸不确定 = 该维在 confirm_dims 里，或 W/D/H 缺失；
+        #   数量不确定 = qty 缺失。
+        _confirm = set(p.get('confirm_dims') or [])
+        dim_uncertain = {ax for ax, v in (('W', w), ('D', d), ('H', h))
+                         if ax in _confirm or v in (None, '', 0)}
+        qty_uncertain = qty in (None, '', 0)
+        # 备注只写极简不确定标记，其余（AI 提取/流程说明/材质缘由）一律进说明文件、不进 Excel。
+        _remark = []
+        if dim_uncertain:
+            _remark.append('尺寸不确定')
+        if qty_uncertain:
+            _remark.append('数量不确定')
 
         ws[f'A{r}'] = i + 1
-        ws[f'B{r}'] = (f"⚠ {code}" if flag else code)
+        ws[f'B{r}'] = code
         ws[f'C{r}'] = cell_C(p.get('name_jp', ''), p.get('name_cn', ''))
         ws[f'E{r}'] = cell_E(p.get('mat_jp'), p.get('mat_cn'))
         ws[f'F{r}'] = w; ws[f'G{r}'] = d; ws[f'H{r}'] = h
@@ -247,21 +253,20 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
         ws[f'J{r}'] = 'pcs'
         ws[f'K{r}'] = f'=F{r}*G{r}*H{r}*I{r}/1000000000*1.1'
         ws[f'M{r}'] = f'=IF(L{r}="","",L{r}*I{r})'
-        ws[f'N{r}'] = cell_N(notejp, notecn)
+        ws[f'N{r}'] = '；'.join(_remark)
         ws[f'A{r}'].font = Fn(SZ_NORMAL); ws[f'A{r}'].alignment = Al(horizontal='center', vertical='center')
         ws[f'B{r}'].font = Fn(SZ_NORMAL, True); ws[f'B{r}'].alignment = Al('center', vertical='center', wrap_text=True)
         ws[f'C{r}'].font = Fn(SZ_NORMAL); ws[f'C{r}'].alignment = Al('center', vertical='center', wrap_text=True)
         ws[f'D{r}'].alignment = Al('center', vertical='center')
         ws[f'E{r}'].font = Fn(SZ_SPEC); ws[f'E{r}'].alignment = Al('left', vertical='center', wrap_text=True, indent=1)
-        # F/G/H 逐维：若该维在 confirm_dims 里，单格标淡黄（覆盖白底；可与整行⚠叠加）
-        _confirm = p.get('confirm_dims') or []
+        # F/G/H 逐维：仅不确定的那一维单格标淡黄（覆盖白底）
         for col, _key in (('F', 'W'), ('G', 'D'), ('H', 'H')):
             ws[f'{col}{r}'].font = Fn(SZ_NORMAL); ws[f'{col}{r}'].alignment = Al('center', vertical='center')
-            if _key in _confirm:
+            if _key in dim_uncertain:
                 ws[f'{col}{r}'].fill = HL_FILL
-        # 数量列：去底色 + 14pt 粗体 + 千位分隔
+        # 数量列：14pt 粗体 + 千位分隔；不确定标淡黄，否则去底色
         ws[f'I{r}'].font = Fn(SZ_QTY, True); ws[f'I{r}'].alignment = Al('center', vertical='center')
-        ws[f'I{r}'].fill = NO_FILL; ws[f'I{r}'].number_format = '#,##0'
+        ws[f'I{r}'].fill = HL_FILL if qty_uncertain else NO_FILL; ws[f'I{r}'].number_format = '#,##0'
         ws[f'J{r}'].font = Fn(SZ_NORMAL); ws[f'J{r}'].alignment = Al('center', vertical='center')
         ws[f'K{r}'].font = Fn(SZ_NORMAL); ws[f'K{r}'].alignment = Al('center', vertical='center'); ws[f'K{r}'].number_format = '0.00'
         ws[f'L{r}'].font = Fn(SZ_NORMAL); ws[f'L{r}'].alignment = Al('right', vertical='center'); ws[f'L{r}'].number_format = '"US$"#,##0;\\-"US$"#,##0'
@@ -269,8 +274,6 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
         ws[f'N{r}'].font = Fn(SZ_NOTE); ws[f'N{r}'].alignment = Al('left', vertical='center', wrap_text=True, indent=1)
         for col in 'ABCDEFGHIJKLMN':
             ws[f'{col}{r}'].border = BORDER
-        if flag:
-            ws[f'B{r}'].fill = HL_FILL; ws[f'N{r}'].fill = HL_FILL
 
         # 裁剪 + 居中嵌入（页号 1-based → fitz 0-based）
         page = p.get('page')

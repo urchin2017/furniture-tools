@@ -119,7 +119,9 @@ def test_fill_quote_flags_unconfirmed_rows(drawing_pdf, template_xlsx, tmp_path)
                                "", 18, 30, False)
     assert set(summary["unconfirmed"]) == {"F01", "F01A"}
     ws = load_workbook(out_xlsx).active
-    assert ws["B18"].value.startswith("⚠"), "未确认行应标 ⚠"
+    # 新方案：品番不再加 ⚠ 前缀；缺尺寸/数量的行改为备注写极简标记 + 不确定单格淡黄。
+    assert not (ws["B18"].value or "").startswith("⚠"), "品番不应再加 ⚠ 前缀"
+    assert "不确定" in (ws["N18"].value or ""), "缺尺寸/数量的行备注应写「…不确定」"
 
 
 # ---------- 边界 / 异常 ----------

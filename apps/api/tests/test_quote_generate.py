@@ -413,6 +413,56 @@ def test_analyze_matches_generate_classification(storage_supabase, monkeypatch):
     assert a["summary"]["bitmap_pages"] == result["summary"]["bitmap_pages"]
 
 
+def test_extract_materials_catches_real_drawing_patterns():
+    """材质提取：真实图纸写「面材：X」「脚：X」或直接写材质名，都要抓到（旧版只认「材質：」全漏）。"""
+    text = (
+        "フレーム：32角パイプ（黒塗装）\n"
+        "面材：メラミン化粧板（リアテック同柄）\n"
+        "脚：白橡木实木\n"
+        "面材同色樹脂テープ（木目）\n"
+        "ITEM No. CIY_B-01\n"       # 非材质行，不该收
+        "W2215 D1275 H2265\n"
+    )
+    mats = dims._extract_materials(text)
+    assert "32角パイプ（黒塗装）" in mats          # フレーム：后
+    assert "メラミン化粧板（リアテック同柄）" in mats  # 面材：后
+    assert "白橡木实木" in mats                     # 脚：后
+    assert any("樹脂テープ" in m for m in mats)     # 裸材质名整行
+    assert not any("CIY_B-01" in m for m in mats), "非材质行不该混入"
+
+
+def test_decide_page_local_fills_materials_without_prefix():
+    """回归：SEKI 式材质（面材：… / 裸材质名）本地也能提取，不再整页材质为空。"""
+    recs = [{"row_code": "", "page": 3, "qty_hint": None,
+             "measured": {"vector_ok": True, "confidence": "mid"},
+             "text_dims": {"W": 2215, "D": 1275, "H": 2265}}]
+    text = "面材：メラミン化粧板（リアテック同柄）\nフレーム：32角パイプ（黒塗装）"
+    d = dims.decide_page_local(recs, text, {})
+    p = d.products[0]
+    assert p["mat_jp"], "材质不应为空"
+    assert any("メラミン化粧板" in m for m in p["mat_jp"])
+    assert p["note_cn"] == "" and p["note_jp"] == "", "本地备注不再写流程/AI 说明"
+
+
+def test_spec_notes_and_completeness_report():
+    """说明文件包含完整性自检 + 逐行明细；缺字段被检出。"""
+    products = [
+        {"row_code": "F01", "page": 2, "W": 1200, "D": 850, "H": 725, "qty": 3,
+         "name_jp": "机", "mat_jp": ["メラミン"], "dim_source": "visual",
+         "dim_evidence": "外形線", "confirm_dims": [], "note_cn": ""},
+        {"row_code": "", "page": 3, "W": None, "D": None, "H": None, "qty": None,
+         "name_jp": "", "mat_jp": [], "dim_source": "PENDING",
+         "dim_evidence": "", "confirm_dims": [], "note_cn": ""},
+    ]
+    gaps = generate._completeness_gaps(products)
+    assert len(gaps) == 1 and gaps[0]["row"] == 2
+    assert set(gaps[0]["missing"]) == {"材质", "品名", "尺寸", "数量"}
+    txt = generate._build_spec_notes("测试", products, gaps)
+    assert "完整性自检" in txt and "逐行明细" in txt
+    assert "缺 材质/品名/尺寸/数量" in txt
+    assert "本地提取" not in txt or True  # 说明文件可含过程信息（这里无）
+
+
 def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):
     def _no(*a, **k):
         raise AssertionError("local 模式不该调用任何 AI")

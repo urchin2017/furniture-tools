@@ -228,9 +228,38 @@ def decide_page_text(
 
 
 # ============ 纯本地零 AI 提取（不调 Anthropic）============
-# 品名/材質关键字锚定（通用尽力版；拿到真实样图后按其模板精修）。
+# 品名/材質关键字锚定。真实图纸的材质**很少写「材質：」**，多写「面材：」「脚：」「フレーム：」，
+# 或直接写材质名（メラミン化粧板…）——旧版只认「材質/材料/仕様」前缀，导致 SEKI 全漏、创明部分漏。
 _NAME_RE = re.compile(r"(?:品名|名称|品名称)\s*[:：]?\s*([^\n\r]{1,40})")
-_MAT_RE = re.compile(r"(?:材質|材质|材料|仕様)\s*[:：]?\s*([^\n\r]{1,60})")
+# 材质行前缀（写「X：材质描述」时，取冒号后的描述）
+_MAT_PREFIX_RE = re.compile(
+    r"^(?:材質|材质|材料|仕様|面材|甲板|天板|脚|フレーム|表面|仕上げ?|塗装|エッジ|"
+    r"側板|扉|取手|パネル|芯材|框|化粧|張り?地)\s*[:：]\s*(.+)$"
+)
+# 裸材质名词表（整行不带前缀，但含这些词 → 该行就是材质规格，整行收）
+_MAT_VOCAB = (
+    "メラミン化粧板", "化粧板", "リアテック", "無垢材", "ステンレス", "スチール",
+    "ガラス", "ミラー", "パイプ", "実木", "橡木", "ポリ板", "樹脂", "アクリル",
+    "ランバー", "突板", "塗装", "メラミン",
+)
+
+
+def _extract_materials(text: str, limit: int = 6) -> list[str]:
+    """从页面文字层尽力抽取材质规格行（前缀式「面材：X」取 X；裸材质名行整行收）。去重保序、限量。"""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in (text or "").splitlines():
+        ln = raw.strip()
+        if len(ln) < 3:
+            continue
+        m = _MAT_PREFIX_RE.match(ln)
+        cand = m.group(1).strip() if m else (ln if any(v in ln for v in _MAT_VOCAB) else None)
+        if cand and len(cand) >= 2 and cand not in seen:
+            seen.add(cand)
+            out.append(cand)
+            if len(out) >= limit:
+                break
+    return out
 
 
 def glossary_translate(term: str, maps: dict[str, dict[str, str]]) -> str:
@@ -281,10 +310,7 @@ def decide_page_local(
     m = _NAME_RE.search(page_text or "")
     if m:
         name_jp = m.group(1).strip()
-    mat_jp: list[str] = []
-    mm = _MAT_RE.search(page_text or "")
-    if mm and mm.group(1).strip():
-        mat_jp = [mm.group(1).strip()]
+    mat_jp = _extract_materials(page_text)
 
     products: list[dict[str, Any]] = []
     warnings: list[str] = []
@@ -307,9 +333,8 @@ def decide_page_local(
         nm_cn = glossary_translate(nm_jp, maps)
         mats_jp = mat_jp or [str(x) for x in (r.get("mat_jp") or []) if str(x).strip()]
         mats_cn = [c for c in (glossary_translate(x, maps) for x in mats_jp) if c]
-        note = "本地提取（几何+文字+术语表，未经 AI 看图），尺寸/品名务必人工核对。"
-        if nm_jp and not nm_cn:
-            note += "（品名未命中术语表，保留日文待译/补词条）"
+        # 备注不写「本地提取…」这类流程/AI 说明——那些只进说明文件，绝不进 Excel。
+        # Excel 备注由 fill_quote 按不确定度自动生成极简标记（尺寸/数量不确定）。
         products.append(_clean_product({
             "row_code": code,
             "name_jp": nm_jp,
@@ -321,7 +346,7 @@ def decide_page_local(
             "dim_source": src,
             "dim_evidence": "本地几何量取/文字注记提取",
             "confirm_dims": confirm,
-            "note_jp": "", "note_cn": note,
+            "note_jp": "", "note_cn": "",
         }))
         if src == "PENDING" or confirm:
             flag = "/".join(confirm) or "尺寸"

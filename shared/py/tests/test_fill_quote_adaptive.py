@@ -345,20 +345,36 @@ def test_row_height_never_shorter_than_image(footer_template, blank_pdf, tmp_pat
     assert int(h * 4 / 3) >= fq.IMG_H
 
 
-def test_whitefill_yellow_overrides_on_flagged_row(footer_template, blank_pdf, tmp_path):
-    """⚠行 B/N 淡黄覆盖白底，其余列仍白；I 列仍无填充；未标记行全白。"""
+HL = "FFFFFBEB"  # 新·极淡黄（比旧 F2CC 更淡）
+
+
+def test_uncertain_dim_light_yellow_cell_only(footer_template, blank_pdf, tmp_path):
+    """不确定的维只在**单格**标极淡黄；品番/备考/其它列不高亮，品番无 ⚠ 前缀，备注写极简标记。"""
     prods = _mk_products(2)
-    prods[1]["note_jp"] = "要確認"          # 触发 ⚠ flag
+    prods[1]["confirm_dims"] = ["W"]
     _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
     r0, r1 = START_ROW, START_ROW + 1
-    # 未标记行：B/N 纯白
-    assert _fill_rgb(ws[f"B{r0}"]) == "FFFFFFFF"
-    assert _fill_rgb(ws[f"N{r0}"]) == "FFFFFFFF"
-    # 标记行：B/N 淡黄；C 仍白；I 仍无填充
-    assert _fill_rgb(ws[f"B{r1}"]) == "FFFFF2CC"
-    assert _fill_rgb(ws[f"N{r1}"]) == "FFFFF2CC"
-    assert _fill_rgb(ws[f"C{r1}"]) == "FFFFFFFF"
-    assert _fill_rgb(ws[f"I{r1}"]) is None
+    # 未标记行：全白、备注空
+    assert _fill_rgb(ws[f"F{r0}"]) == "FFFFFFFF"
+    assert ws[f"N{r0}"].value in (None, "")
+    # 标记行：仅 W(F) 淡黄；B/C/N 不黄；品番无 ⚠；备注=尺寸不确定
+    assert _fill_rgb(ws[f"F{r1}"]) == HL
+    assert _fill_rgb(ws[f"B{r1}"]) == "FFFFFFFF"
+    assert _fill_rgb(ws[f"N{r1}"]) == "FFFFFFFF"
+    assert "⚠" not in (ws[f"B{r1}"].value or "")
+    assert ws[f"N{r1}"].value == "尺寸不确定"
+
+
+def test_missing_dim_and_qty_flagged_briefly(footer_template, blank_pdf, tmp_path):
+    """缺尺寸→该维淡黄+备注「尺寸不确定」；缺数量→数量格淡黄+备注「数量不确定」。"""
+    prods = _mk_products(1)
+    prods[0]["H"] = None
+    prods[0]["qty"] = None
+    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
+    r = START_ROW
+    assert _fill_rgb(ws[f"H{r}"]) == HL           # H 缺 → 黄
+    assert _fill_rgb(ws[f"I{r}"]) == HL           # 数量缺 → 黄
+    assert ws[f"N{r}"].value == "尺寸不确定；数量不确定"
 
 
 # ==================== 任务3(A)：confirm_dims 逐维高亮（填表侧）====================
@@ -367,9 +383,10 @@ def test_confirm_dims_single_dim_only_that_cell_yellow(footer_template, blank_pd
     prods[0]["confirm_dims"] = ["W"]
     _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
     r = START_ROW
-    assert _fill_rgb(ws[f"F{r}"]) == "FFFFF2CC"   # W 淡黄
+    assert _fill_rgb(ws[f"F{r}"]) == HL           # W 淡黄
     assert _fill_rgb(ws[f"G{r}"]) == "FFFFFFFF"   # D 仍白
     assert _fill_rgb(ws[f"H{r}"]) == "FFFFFFFF"   # H 仍白
+    assert _fill_rgb(ws[f"I{r}"]) is None         # 数量齐全 → 去底色（无填充）
 
 
 def test_confirm_dims_all_three_yellow(footer_template, blank_pdf, tmp_path):
@@ -378,25 +395,13 @@ def test_confirm_dims_all_three_yellow(footer_template, blank_pdf, tmp_path):
     _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
     r = START_ROW
     for col in ("F", "G", "H"):
-        assert _fill_rgb(ws[f"{col}{r}"]) == "FFFFF2CC"
+        assert _fill_rgb(ws[f"{col}{r}"]) == HL
 
 
 def test_confirm_dims_default_empty_no_highlight(footer_template, blank_pdf, tmp_path):
-    """缺省（_mk_products 无该字段）→ F/G/H 保持白底。"""
+    """缺省（_mk_products 无该字段、尺寸齐全）→ F/G/H 保持白底、备注空。"""
     _, ws, _ = _run(footer_template, _mk_products(1), blank_pdf, tmp_path)
     r = START_ROW
     for col in ("F", "G", "H"):
         assert _fill_rgb(ws[f"{col}{r}"]) == "FFFFFFFF"
-
-
-def test_confirm_dims_stacks_with_row_flag(footer_template, blank_pdf, tmp_path):
-    """整行 ⚠（品番+备考黄）与单维黄可叠加。"""
-    prods = _mk_products(1)
-    prods[0]["note_jp"] = "要確認"           # 触发整行 ⚠
-    prods[0]["confirm_dims"] = ["W"]         # 单维
-    _, ws, _ = _run(footer_template, prods, blank_pdf, tmp_path)
-    r = START_ROW
-    assert _fill_rgb(ws[f"B{r}"]) == "FFFFF2CC"   # 品番格黄
-    assert _fill_rgb(ws[f"N{r}"]) == "FFFFF2CC"   # 备考格黄
-    assert _fill_rgb(ws[f"F{r}"]) == "FFFFF2CC"   # W 单格黄
-    assert _fill_rgb(ws[f"G{r}"]) == "FFFFFFFF"   # D 白
+    assert ws[f"N{r}"].value in (None, "")        # 无不确定 → 备注空

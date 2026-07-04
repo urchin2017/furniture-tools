@@ -20,6 +20,7 @@ import re
 import shutil
 import tempfile
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import fitz
@@ -144,10 +145,12 @@ def run(ctx) -> dict[str, Any]:
         raster_pages: list[int] = payload.get("raster_pages", [])
         ctx.report_progress(15)
 
-        # ② 定外形尺寸（判断步骤 → complete_vision，铁律见 prompts.SYSTEM_PROMPT）
+        # ② 定外形尺寸（判断步骤 → complete_vision，铁律见 prompts.SYSTEM_PROMPT）。
+        #    多页并行看图：串行时第 N 页要等前 N-1 页 AI 依次返回，十几页要十几分钟；
+        #    改成并发（默认 4，QUOTE_VISION_CONCURRENCY 可调），墙钟约按并发数缩短。
+        #    system prompt 逐页复用，走 ephemeral 缓存（见 claude_client）再省一笔。
         maps, warnings = _load_glossary_maps(ctx)
         claude = ClaudeClient.from_env()
-        doc = fitz.open(pdf_local)
         pages = sorted({p["page"] for p in products})
         cost_usd = 0.0
         in_tok = 0
@@ -155,26 +158,48 @@ def run(ctx) -> dict[str, Any]:
         cache_read_tok = 0
         cache_write_tok = 0
         model = ""
-        merged_all: list[dict[str, Any]] = []
         vision_dir = os.path.join(workdir, "vision")
-        for i, pageno in enumerate(pages):
-            page_records = [p for p in products if p["page"] == pageno]
-            page_text = doc[pageno - 1].get_text()
-            images, legend = dims.render_vision_images(doc, pageno, vision_dir)
-            gl_lines = dims.glossary_hits_for_text(page_text, maps)
-            decision = dims.decide_page(
-                claude, pageno=pageno, records=page_records, page_text=page_text,
-                images_png=images, image_legend=legend, glossary_lines=gl_lines,
-            )
-            cost_usd += decision.cost_usd
-            in_tok += decision.input_tokens
-            out_tok += decision.output_tokens
-            cache_read_tok += decision.cache_read_input_tokens
-            cache_write_tok += decision.cache_creation_input_tokens
-            model = decision.model or model
+
+        def _decide_one(pageno: int):
+            # 每线程独立开一份 fitz doc：PyMuPDF 的 Document 非线程安全，不能跨线程共享。
+            d = fitz.open(pdf_local)
+            try:
+                recs = [p for p in products if p["page"] == pageno]
+                page_text = d[pageno - 1].get_text()
+                images, legend = dims.render_vision_images(d, pageno, vision_dir)
+                gl_lines = dims.glossary_hits_for_text(page_text, maps)
+                decision = dims.decide_page(
+                    claude, pageno=pageno, records=recs, page_text=page_text,
+                    images_png=images, image_legend=legend, glossary_lines=gl_lines,
+                )
+                return pageno, recs, decision
+            finally:
+                d.close()
+
+        n_pages = len(pages)
+        workers = max(1, min(int(os.environ.get("QUOTE_VISION_CONCURRENCY", "4")), n_pages or 1))
+        decisions: dict[int, tuple[list[dict[str, Any]], Any]] = {}
+        done = 0
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(_decide_one, pn): pn for pn in pages}
+            for fut in as_completed(futs):
+                pageno, recs, decision = fut.result()  # 某页硬失败 → 抛出，整个任务失败（与原行为一致）
+                decisions[pageno] = (recs, decision)
+                cost_usd += decision.cost_usd
+                in_tok += decision.input_tokens
+                out_tok += decision.output_tokens
+                cache_read_tok += decision.cache_read_input_tokens
+                cache_write_tok += decision.cache_creation_input_tokens
+                model = decision.model or model
+                done += 1
+                ctx.report_progress(15 + int(60 * done / n_pages))
+
+        # 按页序合并，保证 Excel 行序稳定（与并行完成先后无关）
+        merged_all: list[dict[str, Any]] = []
+        for pn in pages:
+            recs, decision = decisions[pn]
             warnings.extend(decision.warnings)
-            merged_all.extend(dims.merge_page_decision(page_records, decision))
-            ctx.report_progress(15 + int(60 * (i + 1) / len(pages)))
+            merged_all.extend(dims.merge_page_decision(recs, decision))
 
         products = merged_all
         _mark_duplicate_codes(products)

@@ -142,7 +142,9 @@ class ClaudeClient:
             model=self._model,
             max_tokens=max_tokens,
             thinking={"type": "adaptive"},
-            system=system,
+            # system（五条铁律+看图协议，长）在多页看图里逐页复用 → 打 ephemeral 缓存：
+            # 首页写缓存、后续页命中读（5min TTL），省重复输入 token（cache_read≈0.1×输入）。
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": content}],
         )
         return self._result(msg)

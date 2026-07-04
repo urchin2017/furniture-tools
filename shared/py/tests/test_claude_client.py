@@ -143,6 +143,8 @@ def test_complete_vision_encodes_images():
     assert base64.standard_b64decode(content[0]["source"]["data"]) == img  # base64 可还原
     assert content[-1] == {"type": "text", "text": "看图"}
     assert kw["thinking"] == {"type": "adaptive"}
+    # system prompt 作为可缓存块下发（多页看图逐页复用 → ephemeral 缓存省输入 token）
+    assert kw["system"] == [{"type": "text", "text": "S", "cache_control": {"type": "ephemeral"}}]
 
 
 def test_stream_complete_uses_stream():

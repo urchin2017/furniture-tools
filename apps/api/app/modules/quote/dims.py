@@ -214,6 +214,108 @@ def decide_page_text(
     )
 
 
+# ============ 纯本地零 AI 提取（不调 Anthropic）============
+# 品名/材質关键字锚定（通用尽力版；拿到真实样图后按其模板精修）。
+_NAME_RE = re.compile(r"(?:品名|名称|品名称)\s*[:：]?\s*([^\n\r]{1,40})")
+_MAT_RE = re.compile(r"(?:材質|材质|材料|仕様)\s*[:：]?\s*([^\n\r]{1,60})")
+
+
+def glossary_translate(term: str, maps: dict[str, dict[str, str]]) -> str:
+    """脚本侧术语表翻译：先精确命中，再子串命中；都没有返回 ""（调用方保留原文 + ⚠）。"""
+    t = (term or "").strip()
+    if not t:
+        return ""
+    for mp in maps.values():
+        if t in mp:
+            return mp[t]
+    for mp in maps.values():
+        for src, dst in mp.items():
+            if len(src) >= 2 and src in t:
+                return dst
+    return ""
+
+
+def _local_axis(measured: dict, text_dims: dict, axis: str) -> tuple[int | None, str, bool]:
+    """一根轴的本地取值：几何高置信优先（并与文字注记交叉核对），否则退文字注记。
+    返回 (值, 来源'geometry'/'text'/'none', 是否需人工复核)。"""
+    a = (measured.get(axis) or {}) if isinstance(measured, dict) else {}
+    tv = _coerce_int(text_dims.get(axis)) if isinstance(text_dims, dict) else None
+    geom_ok = (
+        measured.get("vector_ok")
+        and measured.get("confidence") == "high"
+        and a.get("overall_value") is not None
+        and a.get("extent_ok")
+        and not a.get("suspect_local")
+    )
+    if geom_ok:
+        gv = int(round(a["overall_value"]))
+        # 几何 ✕ 文字交叉核对：差得多 → 疑似"局部尺寸陷阱"，标⚠（这一步替 AI 做掉大部分陷阱检测）
+        mismatch = tv is not None and abs(gv - tv) > max(5, int(0.05 * gv))
+        return gv, "geometry", mismatch
+    if tv is not None:
+        return tv, "text", True  # 纯靠文字注记 → 一律复核（可能是分割/局部寸法）
+    return None, "none", True
+
+
+def decide_page_local(
+    records: list[dict[str, Any]],
+    page_text: str,
+    maps: dict[str, dict[str, str]],
+) -> PageDecision:
+    """纯本地零 AI 提取一页：几何量取 W/H + 文字层 D/品名/材質/数量 + 术语表翻译。
+    **不调 Anthropic，成本/tokens 恒为 0。** 拿不准的维/未命中术语表的名称一律标⚠待人工。"""
+    name_jp = ""
+    m = _NAME_RE.search(page_text or "")
+    if m:
+        name_jp = m.group(1).strip()
+    mat_jp: list[str] = []
+    mm = _MAT_RE.search(page_text or "")
+    if mm and mm.group(1).strip():
+        mat_jp = [mm.group(1).strip()]
+
+    products: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    for r in records:
+        code = _norm_code(str(r.get("row_code") or ""))
+        measured = r.get("measured") or {}
+        text_dims = r.get("text_dims") or {}
+        W, ws, wflag = _local_axis(measured, text_dims, "W")
+        H, hs, hflag = _local_axis(measured, text_dims, "H")
+        D = _coerce_int(text_dims.get("D")) if isinstance(text_dims, dict) else None
+        confirm = []
+        if W is not None and wflag:
+            confirm.append("W")
+        if D is not None:
+            confirm.append("D")  # D 永远只有文字来源 → 一律复核
+        if H is not None and hflag:
+            confirm.append("H")
+        src = "geometry" if (ws == "geometry" and hs == "geometry") else "PENDING"
+        nm_jp = name_jp or str(r.get("name_jp") or "")
+        nm_cn = glossary_translate(nm_jp, maps)
+        mats_jp = mat_jp or [str(x) for x in (r.get("mat_jp") or []) if str(x).strip()]
+        mats_cn = [c for c in (glossary_translate(x, maps) for x in mats_jp) if c]
+        note = "本地提取（几何+文字+术语表，未经 AI 看图），尺寸/品名务必人工核对。"
+        if nm_jp and not nm_cn:
+            note += "（品名未命中术语表，保留日文待译/补词条）"
+        products.append(_clean_product({
+            "row_code": code,
+            "name_jp": nm_jp,
+            "name_cn": nm_cn or nm_jp,
+            "mat_jp": mats_jp,
+            "mat_cn": mats_cn,
+            "W": W, "D": D, "H": H,
+            "qty": _coerce_int(r.get("qty_hint")),
+            "dim_source": src,
+            "dim_evidence": "本地几何量取/文字注记提取",
+            "confirm_dims": confirm,
+            "note_jp": "", "note_cn": note,
+        }))
+        if src == "PENDING" or confirm:
+            flag = "/".join(confirm) or "尺寸"
+            warnings.append(f"第 {r.get('page')} 页 {code or '(空品番)'}：本地提取，{flag} 需人工核对")
+    return PageDecision(products=products, cost_usd=0.0, warnings=warnings, model="local-script")
+
+
 def merge_page_decision(
     scaffold_records: list[dict[str, Any]], decision: PageDecision
 ) -> list[dict[str, Any]]:

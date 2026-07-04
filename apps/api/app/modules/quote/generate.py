@@ -147,14 +147,20 @@ def run(ctx) -> dict[str, Any]:
         raster_pages: list[int] = payload.get("raster_pages", [])
         ctx.report_progress(15)
 
-        # ② 定外形尺寸。成本控制：矢量高置信页 W/H 几何已可靠量出 → 走**廉价文字路**（不发图，
-        #    单页省约 5~8 倍）；只有扫描/手绘/几何不置信页才走**视觉路**（贵）。分流模式 vision_mode：
-        #    auto=按页判定（默认，省钱）、always=一律视觉（最准）。多页并行（QUOTE_VISION_CONCURRENCY，
-        #    默认4）；system prompt 逐页复用走 ephemeral 缓存（见 claude_client）。
+        # ② 定外形尺寸。vision_mode 三档：
+        #    local  = 纯本地零 AI（几何+文字+术语表，不调 Anthropic、不需 API key）；
+        #    auto   = 按页判定（默认，省钱）：矢量高置信页走廉价文字路（不发图）、扫描/几何不置信页走视觉；
+        #    always = 一律视觉（最准最贵）。
+        #    多页并行（QUOTE_VISION_CONCURRENCY，默认4）；system prompt 逐页复用走 ephemeral 缓存。
         maps, warnings = _load_glossary_maps(ctx)
-        claude = ClaudeClient.from_env()
         pages = sorted({p["page"] for p in products})
         vmode = str(params.get("vision_mode") or os.environ.get("QUOTE_VISION_MODE", "auto")).lower()
+        # 模型选择（前端下拉）：仅接受白名单内的模型 id，否则回退 .env 默认（防注入/打错）。
+        _allowed_models = {"claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5-20251001"}
+        _model_sel = str(params.get("model") or "")
+        _model_sel = _model_sel if _model_sel in _allowed_models else None
+        # 纯本地模式不碰 Anthropic：连 key 都不需要，客户端也不建。
+        claude = None if vmode == "local" else ClaudeClient.from_env(_model_sel)
         cost_usd = 0.0
         in_tok = 0
         out_tok = 0
@@ -170,29 +176,35 @@ def run(ctx) -> dict[str, Any]:
                 recs = [p for p in products if p["page"] == pageno]
                 page_text = d[pageno - 1].get_text()
                 gl_lines = dims.glossary_hits_for_text(page_text, maps)
-                use_vision = vmode == "always" or dims.page_needs_vision(recs, raster_pages, pageno)
+                if vmode == "local":
+                    path = "local"
+                elif vmode == "always" or dims.page_needs_vision(recs, raster_pages, pageno):
+                    path = "vision"
+                else:
+                    path = "text"
                 try:
-                    if use_vision:
+                    if path == "vision":
                         images, legend = dims.render_vision_images(d, pageno, vision_dir)
                         decision = dims.decide_page(
                             claude, pageno=pageno, records=recs, page_text=page_text,
                             images_png=images, image_legend=legend, glossary_lines=gl_lines,
                         )
-                    else:
+                    elif path == "text":
                         # 廉价文字路：矢量高置信页，不渲染大图、不发图，只跑一次纯文字调用。
                         decision = dims.decide_page_text(
                             claude, pageno=pageno, records=recs, page_text=page_text,
                             glossary_lines=gl_lines,
                         )
+                    else:  # local：纯本地零 AI
+                        decision = dims.decide_page_local(recs, page_text, maps)
                 except Exception as exc:  # noqa: BLE001
-                    # 单页判断失败（模型空输出/超时/限速耗尽等）不拖垮整单：该页返回空决策，
-                    # 由 merge_page_decision 走⚠兜底（保留骨架、标 PENDING 待人工），其余页照常出。
+                    # 单页处理失败不拖垮整单：该页返回空决策，走⚠兜底（保留骨架、标 PENDING）。
+                    _lbl = {"vision": "视觉", "text": "文字", "local": "本地"}[path]
                     decision = dims.PageDecision(
                         products=[], cost_usd=0.0,
-                        warnings=[f"第 {pageno} 页{'视觉' if use_vision else '文字'}判断失败，"
-                                  f"已跳过、保留骨架待人工核对：{exc}"],
+                        warnings=[f"第 {pageno} 页{_lbl}处理失败，已跳过、保留骨架待人工核对：{exc}"],
                     )
-                return pageno, recs, decision, use_vision
+                return pageno, recs, decision, path
             finally:
                 d.close()
 
@@ -202,17 +214,20 @@ def run(ctx) -> dict[str, Any]:
         per_page: list[dict[str, Any]] = []
         n_vision = 0
         n_text = 0
+        n_local = 0
         done = 0
         ex = ThreadPoolExecutor(max_workers=workers)
         try:
             futs = {ex.submit(_decide_one, pn): pn for pn in pages}
             for fut in as_completed(futs):
-                pageno, recs, decision, used_vision = fut.result()
+                pageno, recs, decision, path = fut.result()
                 decisions[pageno] = (recs, decision)
-                if used_vision:
+                if path == "vision":
                     n_vision += 1
-                else:
+                elif path == "text":
                     n_text += 1
+                else:
+                    n_local += 1
                 cost_usd += decision.cost_usd
                 in_tok += decision.input_tokens
                 out_tok += decision.output_tokens
@@ -222,7 +237,7 @@ def run(ctx) -> dict[str, Any]:
                 # 逐页 token/成本明细：让前端能看「每页（单次）」而非只有整单汇总。
                 per_page.append({
                     "page": pageno,
-                    "path": "vision" if used_vision else "text",
+                    "path": path,
                     "input_tokens": decision.input_tokens,
                     "output_tokens": decision.output_tokens,
                     "cost_usd": round(decision.cost_usd, 4),
@@ -292,6 +307,7 @@ def run(ctx) -> dict[str, Any]:
                 "cache_creation_input_tokens": cache_write_tok,
                 "vision_calls": n_vision,
                 "text_calls": n_text,
+                "local_calls": n_local,
                 "vision_mode": vmode,
                 "per_page": per_page,
                 "warnings": warnings,

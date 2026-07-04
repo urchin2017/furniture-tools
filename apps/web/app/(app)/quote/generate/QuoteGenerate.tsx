@@ -84,6 +84,7 @@ export default function QuoteGenerate() {
   const [startRow, setStartRow] = useState(18);
   const [lastRow, setLastRow] = useState(50);
   const [requireVisual, setRequireVisual] = useState(false);
+  const [highAccuracy, setHighAccuracy] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
@@ -214,6 +215,8 @@ export default function QuoteGenerate() {
         start_row: startRow,
         last_row: lastRow,
         require_visual: requireVisual,
+        // 高精度模式：勾选 → always（逐页视觉复核，更准更贵）；默认 auto（矢量页走廉价文字路，省钱）。
+        vision_mode: highAccuracy ? "always" : "auto",
       };
       const res = await fetchRetry(`${API}/api/jobs`, {
         method: "POST",
@@ -340,6 +343,16 @@ export default function QuoteGenerate() {
           />
           终版闸门
           <Hint text="勾选后：有未确认 / 缺尺寸的项时拒绝出文件。不勾 = 允许出带 ⚠ 的草稿版。" />
+        </label>
+        <label className="inline-flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={highAccuracy}
+            disabled={busy}
+            onChange={(e) => setHighAccuracy(e.target.checked)}
+          />
+          高精度 AI（逐页看图）
+          <Hint text="不勾（默认·省钱）：矢量图纸走廉价文字路，只有扫描/几何拿不准的页才用视觉，成本约低 8 倍。勾选：每页都让 AI 看图核对尺寸，更准但更贵、更慢。关键报价或图纸乱时用。" />
         </label>
         <button
           type="submit"

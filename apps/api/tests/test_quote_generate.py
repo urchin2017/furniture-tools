@@ -104,6 +104,19 @@ def test_merge_placeholder_claimed_once_and_empty_decision_keeps_scaffold():
     assert merged2 == scaffold2, "视觉空手而归时保留骨架兜底"
 
 
+def test_merge_keeps_empty_code_local_dims():
+    """回归：无品番页（如 SEKI，品番在图框里提不出）本地量出的尺寸必须并到空占位，绝不丢。"""
+    scaffold = [_rec("", page=3)]
+    local = dims._clean_product(
+        {"row_code": "", "W": 2215, "D": 1275, "H": 2265, "dim_source": "PENDING",
+         "confirm_dims": ["W", "D", "H"]}
+    )
+    merged = dims.merge_page_decision(scaffold, PageDecision(products=[local], cost_usd=0.0))
+    assert len(merged) == 1
+    assert (merged[0]["W"], merged[0]["D"], merged[0]["H"]) == (2215, 1275, 2265)
+    assert merged[0]["confirm_dims"] == ["W", "D", "H"], "逐维待确认应保留"
+
+
 def test_glossary_hits_scans_substrings():
     maps = {"ja→zh": {"メラミン化粧板": "防火板", "フィラー": "填缝条"}, "zh→ja": {"防火板": "メラミン化粧板"}}
     lines = dims.glossary_hits_for_text("材質：メラミン化粧板（フォーミカ）", maps)
@@ -343,6 +356,61 @@ def test_analyze_pdf_classifies_and_plans(tmp_path):
 
     out2 = analyze_pdf(str(p), skip_pages=[], vision_mode="always")
     assert out2["pages"][0]["path"] == "vision" and out2["summary"]["ai_pages"] == [1]
+
+
+def _bitmap_pdf_bytes() -> bytes:
+    """一页嵌 600×600 位图、无矢量线 → detect_raster 判为位图页。"""
+    doc = fitz.open()
+    page = doc.new_page(width=842, height=595)
+    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 600, 600))
+    pix.set_rect(pix.irect, (240, 240, 240))
+    page.insert_image(fitz.Rect(40, 40, 700, 540), stream=pix.tobytes("png"))
+    page.insert_text((60, 560), "款号：R01", fontsize=8)
+    return doc.tobytes()
+
+
+def test_analyze_pdf_bitmap_and_skipall_boundaries(tmp_path):
+    """边界/异常：位图页→计划 vision；跳过全部页→空计划不报错。"""
+    from app.modules.quote.analyze import analyze_pdf
+
+    pb = tmp_path / "b.pdf"
+    pb.write_bytes(_bitmap_pdf_bytes())
+    out = analyze_pdf(str(pb), skip_pages=[], vision_mode="auto")
+    assert out["pages"][0]["kind"] == "bitmap" and out["pages"][0]["path"] == "vision"
+    assert out["summary"]["ai_pages"] == [1] and out["summary"]["bitmap_pages"] == [1]
+    # 位图页在纯本地模式仍计划 local（用户要零 AI），但 kind 仍是 bitmap
+    out_l = analyze_pdf(str(pb), skip_pages=[], vision_mode="local")
+    assert out_l["pages"][0]["kind"] == "bitmap" and out_l["pages"][0]["path"] == "local"
+    # 跳过全部页 → 空计划（不抛）
+    out0 = analyze_pdf(str(pb), skip_pages=[1], vision_mode="auto")
+    assert out0["summary"]["total"] == 0 and out0["pages"] == []
+
+
+def test_analyze_pdf_bad_path_raises():
+    from app.modules.quote.analyze import analyze_pdf
+
+    with pytest.raises(Exception):  # noqa: B017 — 坏路径应抛（路由层会转 400）
+        analyze_pdf("/no/such/file.pdf", skip_pages=[], vision_mode="auto")
+
+
+def test_analyze_matches_generate_classification(storage_supabase, monkeypatch):
+    """回归：analyze 的位图/矢量判定必须与 generate summary 的分类一致（同一分流依据）。"""
+    from app.modules.quote.analyze import analyze_pdf
+
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+    # 用与集成夹具相同的图纸（矢量测试页）
+    pdf_bytes = storage_supabase.storage.from_("uploads").download("u1/quote/1/drawing.pdf")
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tf:
+        tf.write(pdf_bytes)
+        tf.flush()
+        a = analyze_pdf(tf.name, skip_pages=[], vision_mode="local")
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1",
+                                     params=_params(vision_mode="local")))
+    assert a["summary"]["vector_pages"] == result["summary"]["vector_pages"]
+    assert a["summary"]["bitmap_pages"] == result["summary"]["bitmap_pages"]
 
 
 def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):

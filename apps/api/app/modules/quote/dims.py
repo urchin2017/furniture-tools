@@ -337,6 +337,8 @@ def merge_page_decision(
     - 品番对上 → 更新尺寸/数量/双语文案；
     - 视觉补出的新品番（骨架漏拆的变体）→ 以本页第一条骨架为底新建记录；
     - 骨架里的空品番占位（无文本层页）在视觉给出品番后剔除；
+    - **决策自己也没品番（如无文本层页的本地提取，品番在图框里、提不出来）→ 仍把它的
+      尺寸并到空品番占位上，绝不丢弃**（否则整页只剩空白骨架，本地量出的 W/D/H 全没了）；
     - 视觉漏答的骨架品番保持 PENDING（fill_quote 会标 ⚠）。
     """
     by_code = {_norm_code(r.get("row_code", "")): r for r in scaffold_records}
@@ -345,12 +347,20 @@ def merge_page_decision(
     seen: set[str] = set()
     for p in decision.products:
         code = p["row_code"]
-        if not code or code in seen:
+        if not code:
+            # 决策无品番：并到本页空品番占位（若有且未被认领），保留其尺寸；否则跳过。
+            if "" in by_code and "" not in seen:
+                rec = dict(by_code[""])
+                rec.update(p)
+                merged.append(rec)
+                seen.add("")
+            continue
+        if code in seen:
             continue
         seen.add(code)
         if code in by_code:
             rec = dict(by_code[code])
-        elif "" in by_code:
+        elif "" in by_code and "" not in seen:
             rec = dict(by_code.pop(""))  # 空品番占位（无文本层页）被本条认领，不再复用
         else:
             rec = dict(base)             # 骨架漏拆的变体：以本页第一条为底新建

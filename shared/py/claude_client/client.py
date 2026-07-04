@@ -44,6 +44,15 @@ def _rates_for(model: str) -> tuple[float, float]:
     return (_IN_PER_M, _OUT_PER_M)
 
 
+# 支持 adaptive thinking 的模型前缀。Haiku 4.5 / Sonnet 4.x 会对 thinking 报 400，
+# 所以只对确知支持的模型发 thinking，其余（如 Haiku）省略——否则切模型即崩。
+_ADAPTIVE_THINKING_PREFIXES = ("claude-opus-4", "claude-sonnet-5", "claude-fable-5")
+
+
+def _supports_adaptive_thinking(model: str) -> bool:
+    return model.startswith(_ADAPTIVE_THINKING_PREFIXES)
+
+
 @dataclass
 class Usage:
     input_tokens: int = 0
@@ -107,11 +116,16 @@ class ClaudeClient:
             model=message.model,
         )
 
+    def _base_kwargs(self, max_tokens: int) -> dict:
+        kw: dict = {"model": self._model, "max_tokens": max_tokens}
+        # adaptive thinking 只发给支持的模型（Haiku/Sonnet4.x 会 400）。
+        if _supports_adaptive_thinking(self._model):
+            kw["thinking"] = {"type": "adaptive"}
+        return kw
+
     def complete(self, *, system: str, user_text: str, max_tokens: int = 16000) -> LLMResult:
         msg = self._c.messages.create(
-            model=self._model,
-            max_tokens=max_tokens,
-            thinking={"type": "adaptive"},
+            **self._base_kwargs(max_tokens),
             system=system,
             messages=[{"role": "user", "content": user_text}],
         )
@@ -139,9 +153,7 @@ class ClaudeClient:
         ]
         content.append({"type": "text", "text": user_text})
         msg = self._c.messages.create(
-            model=self._model,
-            max_tokens=max_tokens,
-            thinking={"type": "adaptive"},
+            **self._base_kwargs(max_tokens),
             # system（五条铁律+看图协议，长）在多页看图里逐页复用 → 打 ephemeral 缓存：
             # 首页写缓存、后续页命中读（5min TTL），省重复输入 token（cache_read≈0.1×输入）。
             system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
@@ -151,9 +163,7 @@ class ClaudeClient:
 
     def stream_complete(self, *, system: str, user_text: str, max_tokens: int = 64000) -> LLMResult:
         with self._c.messages.stream(
-            model=self._model,
-            max_tokens=max_tokens,
-            thinking={"type": "adaptive"},
+            **self._base_kwargs(max_tokens),
             system=system,
             messages=[{"role": "user", "content": user_text}],
         ) as stream:
@@ -161,8 +171,8 @@ class ClaudeClient:
         return self._result(msg)
 
     @classmethod
-    def from_env(cls) -> "ClaudeClient":
+    def from_env(cls, model_override: str | None = None) -> "ClaudeClient":
         from settings import Settings
 
         s = Settings.from_env()
-        return cls(s.anthropic_api_key, model=s.claude_model)
+        return cls(s.anthropic_api_key, model=model_override or s.claude_model)

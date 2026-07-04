@@ -147,6 +147,21 @@ def test_complete_vision_encodes_images():
     assert kw["system"] == [{"type": "text", "text": "S", "cache_control": {"type": "ephemeral"}}]
 
 
+def test_thinking_only_for_supported_models():
+    # Haiku 4.5 / Sonnet 4.x 不支持 adaptive thinking（会 400）→ 客户端必须省略 thinking
+    c = ClaudeClient("k", model="claude-haiku-4-5-20251001")
+    c._c = _FakeAnthropic()
+    c.complete(system="S", user_text="hi")
+    _, kw = c._c.messages.calls[-1]
+    assert "thinking" not in kw, "Haiku 不应发 adaptive thinking"
+    # Sonnet 5 支持 → 发
+    c2 = ClaudeClient("k", model="claude-sonnet-5")
+    c2._c = _FakeAnthropic()
+    c2.complete(system="S", user_text="hi")
+    _, kw2 = c2._c.messages.calls[-1]
+    assert kw2.get("thinking") == {"type": "adaptive"}, "Sonnet 5 应发 adaptive thinking"
+
+
 def test_stream_complete_uses_stream():
     c, fake = _client_with_fake()
     r = c.stream_complete(system="S", user_text="长输出", max_tokens=64000)

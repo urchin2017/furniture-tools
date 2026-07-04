@@ -177,7 +177,7 @@ def _params(**over):
 def test_handler_full_pipeline_offline(storage_supabase, monkeypatch):
     class _FakeClaude:
         @classmethod
-        def from_env(cls):
+        def from_env(cls, model_override=None):
             return cls()
 
     def fake_decide_page(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
@@ -210,7 +210,7 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     """单页视觉失败（如模型空输出）不拖垮整单：该页保留骨架⚠，仍出草稿 xlsx。"""
     class _FakeClaude:
         @classmethod
-        def from_env(cls):
+        def from_env(cls, model_override=None):
             return cls()
 
     def boom(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
@@ -227,7 +227,7 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     assert any(k.endswith(".xlsx") for k in outputs), "即使视觉失败也要出草稿 xlsx"
     summary = result["summary"]
     assert summary["rows"] >= 1 and summary["unconfirmed"], "失败页应保留为 PENDING（⚠）"
-    assert any("判断失败" in w for w in summary["warnings"]), "应带失败页警告"
+    assert any("处理失败" in w for w in summary["warnings"]), "应带失败页警告"
 
 
 def test_page_needs_vision_routing():
@@ -248,7 +248,7 @@ def test_handler_auto_mode_uses_text_path_for_vector_pages(storage_supabase, mon
     """auto 模式：判定为矢量高置信的页走廉价文字路（不发图），不调视觉。"""
     class _FakeClaude:
         @classmethod
-        def from_env(cls):
+        def from_env(cls, model_override=None):
             return cls()
 
     called = {"vision": 0, "text": 0}
@@ -276,7 +276,7 @@ def test_handler_always_mode_forces_vision(storage_supabase, monkeypatch):
     """always 模式：即便判定不需视觉，也强制走视觉路。"""
     class _FakeClaude:
         @classmethod
-        def from_env(cls):
+        def from_env(cls, model_override=None):
             return cls()
 
     called = {"vision": 0, "text": 0}
@@ -307,7 +307,7 @@ def test_handler_cancellation_raises_jobcancelled(storage_supabase, monkeypatch)
 
     class _FakeClaude:
         @classmethod
-        def from_env(cls):
+        def from_env(cls, model_override=None):
             return cls()
 
     def fake_decide(*a, **k):
@@ -321,6 +321,49 @@ def test_handler_cancellation_raises_jobcancelled(storage_supabase, monkeypatch)
 
     with pytest.raises(JobCancelled):
         generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
+
+
+def test_decide_page_local_zero_ai():
+    recs = [{
+        "row_code": "F01", "page": 2, "qty_hint": 3,
+        "measured": {
+            "vector_ok": True, "confidence": "high",
+            "W": {"overall_value": 1740, "extent_ok": True, "suspect_local": False},
+            "H": {"overall_value": 2650, "extent_ok": True, "suspect_local": False},
+        },
+        "text_dims": {"W": 1740, "D": 600, "H": 2650},
+    }]
+    maps = {"ja→zh": {"カウンター": "柜台", "メラミン化粧板": "防火板"}}
+    d = dims.decide_page_local(recs, "品名：カウンター\n材質：メラミン化粧板", maps)
+    assert d.cost_usd == 0.0 and d.input_tokens == 0, "本地零 AI：无成本、无 token"
+    p = d.products[0]
+    assert p["W"] == 1740 and p["H"] == 2650 and p["D"] == 600
+    assert p["dim_source"] == "geometry"          # W/H 几何、与文字一致
+    assert "W" not in p["confirm_dims"]            # 几何✕文字一致 → 不⚠
+    assert "D" in p["confirm_dims"]                # D 仅文字来源 → ⚠
+    assert p["name_cn"] == "柜台" and "防火板" in p["mat_cn"]  # 术语表脚本翻译
+
+
+def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):
+    def _no(*a, **k):
+        raise AssertionError("local 模式不该调用任何 AI")
+
+    class _NoClaude:
+        @staticmethod
+        def from_env():
+            raise AssertionError("local 模式不该建 Claude 客户端")
+
+    monkeypatch.setattr(generate, "ClaudeClient", _NoClaude)
+    monkeypatch.setattr(dims, "decide_page", _no)
+    monkeypatch.setattr(dims, "decide_page_text", _no)
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1",
+                                     params=_params(vision_mode="local")))
+    assert result["summary"]["local_calls"] >= 1
+    assert result["summary"]["cost_usd"] == 0.0
+    outputs = storage_supabase.storage.buckets["outputs"]
+    assert any(k.endswith(".xlsx") for k in outputs), "本地模式也出 xlsx（草稿）"
 
 
 def test_handler_rejects_foreign_paths(storage_supabase):

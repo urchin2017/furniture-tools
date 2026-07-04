@@ -63,6 +63,7 @@ type JobResult = {
     cache_creation_input_tokens?: number;
     vision_calls?: number;
     text_calls?: number;
+    local_calls?: number;
     vision_mode?: string;
     per_page?: {
       page: number;
@@ -93,7 +94,8 @@ export default function QuoteGenerate() {
   const [startRow, setStartRow] = useState(18);
   const [lastRow, setLastRow] = useState(50);
   const [requireVisual, setRequireVisual] = useState(false);
-  const [highAccuracy, setHighAccuracy] = useState(false);
+  const [visionMode, setVisionMode] = useState<"local" | "auto" | "always">("auto");
+  const [model, setModel] = useState("claude-sonnet-5");
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
@@ -247,8 +249,9 @@ export default function QuoteGenerate() {
         start_row: startRow,
         last_row: lastRow,
         require_visual: requireVisual,
-        // 高精度模式：勾选 → always（逐页视觉复核，更准更贵）；默认 auto（矢量页走廉价文字路，省钱）。
-        vision_mode: highAccuracy ? "always" : "auto",
+        // AI 模式：local=纯本地零 AI / auto=省钱分流（默认）/ always=逐页视觉最准。
+        vision_mode: visionMode,
+        model,  // 纯本地模式下后端忽略此项
       };
       const res = await fetchRetry(`${API}/api/jobs`, {
         method: "POST",
@@ -379,14 +382,34 @@ export default function QuoteGenerate() {
           <Hint text="勾选后：有未确认 / 缺尺寸的项时拒绝出文件。不勾 = 允许出带 ⚠ 的草稿版。" />
         </label>
         <label className="inline-flex items-center gap-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            checked={highAccuracy}
+          <span className="inline-flex items-center gap-1">
+            AI 模式
+            <Hint text="纯本地（零 AI）：完全不调 Anthropic、零成本——几何量 W/H + 文字层提 D/品名/材质 + 术语表翻译，拿不准的标 ⚠ 待人工核对。只适合能提取文字的矢量 PDF。 省钱（默认）：矢量页走廉价文字调用，扫描/拿不准的页才用视觉，成本约低 8 倍。 高精度：每页都让 AI 看图核对，最准最贵最慢，关键报价用。" />
+          </span>
+          <select
+            value={visionMode}
             disabled={busy}
-            onChange={(e) => setHighAccuracy(e.target.checked)}
-          />
-          高精度 AI（逐页看图）
-          <Hint text="不勾（默认·省钱）：矢量图纸走廉价文字路，只有扫描/几何拿不准的页才用视觉，成本约低 8 倍。勾选：每页都让 AI 看图核对尺寸，更准但更贵、更慢。关键报价或图纸乱时用。" />
+            onChange={(e) => setVisionMode(e.target.value as "local" | "auto" | "always")}
+            className="rounded-lg border border-border bg-bg px-2 py-1.5 text-ink"
+          >
+            <option value="local">纯本地（零 AI · 免费）</option>
+            <option value="auto">省钱（推荐 · 自动分流）</option>
+            <option value="always">高精度（逐页看图）</option>
+          </select>
+          <span className="inline-flex items-center gap-1 ml-2">
+            AI 模型
+            <Hint text="用到 AI 时选哪个模型（纯本地模式不调 AI，此项无效）。 Sonnet 5（推荐）：读尺寸准、价格适中。 Haiku 4.5：约 1/3 价、更快，但更容易读错尺寸——省钱首选是「纯本地/省钱」模式而非换 Haiku。 Opus 4.8：最准最贵，关键报价用。" />
+          </span>
+          <select
+            value={model}
+            disabled={busy || visionMode === "local"}
+            onChange={(e) => setModel(e.target.value)}
+            className="rounded-lg border border-border bg-bg px-2 py-1.5 text-ink disabled:opacity-50"
+          >
+            <option value="claude-sonnet-5">Sonnet 5（推荐）</option>
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5（更便宜）</option>
+            <option value="claude-opus-4-8">Opus 4.8（最准最贵）</option>
+          </select>
         </label>
         <button
           type="submit"
@@ -452,10 +475,10 @@ export default function QuoteGenerate() {
                 <dd className="text-ink">{result.summary.model || "—"}</dd>
                 {result.summary.vision_calls != null && (
                   <>
-                    <dt>AI 调用</dt>
+                    <dt>分流</dt>
                     <dd className="text-ink">
-                      视觉 {result.summary.vision_calls} 页
-                      {result.summary.text_calls != null && ` / 文字 ${result.summary.text_calls} 页（省钱）`}
+                      视觉 {result.summary.vision_calls} 页 / 文字 {result.summary.text_calls ?? 0} 页
+                      {(result.summary.local_calls ?? 0) > 0 && ` / 本地 ${result.summary.local_calls} 页（零 AI）`}
                     </dd>
                   </>
                 )}
@@ -495,7 +518,7 @@ export default function QuoteGenerate() {
                         {result.summary.per_page.map((p) => (
                           <tr key={p.page} className="text-ink">
                             <td className="pr-3">{p.page}</td>
-                            <td className="pr-3">{p.path === "vision" ? "视觉" : "文字"}</td>
+                            <td className="pr-3">{p.path === "vision" ? "视觉" : p.path === "local" ? "本地" : "文字"}</td>
                             <td className="pr-3">{fmtTok(p.input_tokens)}</td>
                             <td className="pr-3">{fmtTok(p.output_tokens)}</td>
                             <td>US${p.cost_usd}</td>

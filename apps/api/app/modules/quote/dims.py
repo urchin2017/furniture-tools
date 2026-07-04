@@ -132,8 +132,10 @@ def decide_page(
 ) -> PageDecision:
     """对一页图纸跑视觉判断，返回该页全部品番的确认结果。"""
     user_text = build_user_text(pageno, records, page_text, glossary_lines, image_legend)
+    # max_tokens 给足：adaptive thinking 会先花一段"思考"额度，复杂/大页（如 47MB 高清扫描页）
+    # 若额度太小，会在思考阶段就被截断、来不及吐 JSON → 空输出。16000 给思考+JSON 留足空间。
     result = claude.complete_vision(
-        system=SYSTEM_PROMPT, user_text=user_text, images_png=images_png, max_tokens=8000
+        system=SYSTEM_PROMPT, user_text=user_text, images_png=images_png, max_tokens=16000
     )
     data = extract_json(result.text)
     raw = data.get("products")

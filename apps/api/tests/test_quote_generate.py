@@ -499,20 +499,38 @@ def test_finalize_makes_materials_bilingual():
     assert any("メラミン化粧板" in m or "フォーミカ" in m for m in q["mat_jp"]), "防火板/富美家→日文"
 
 
-def test_apply_known_dims_fills_and_corrects_from_reference():
-    """既往报价权威尺寸：填空的深度、纠正几何量错的维；多变体按 W 就近匹配。"""
-    products = [
-        {"row_code": "CIY_L-01", "W": 4000, "D": None, "H": 2700, "confirm_dims": ["D"]},  # 几何 H 错、缺 D
-        {"row_code": "CIY_B-04", "W": 3600, "D": 180, "H": 1020, "confirm_dims": []},        # 变体2
-        {"row_code": "CIY_B-04", "W": 2000, "D": 180, "H": 1020, "confirm_dims": []},        # 变体1（就近 1900）
-        {"row_code": "NOPE-01", "W": 1, "D": 2, "H": 3, "confirm_dims": []},                 # 不在表 → 不动
+def test_read_depth_from_drawing_deterministic():
+    """确定性读深度：合成一页——立面(W×H) + 侧视(D×H) 两视图，读出深度=侧视横向且<W。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    # 立面图（左）：宽 W 的横线 + 高 H 的竖线；侧视图（右）：深 D 的横线（D<W）
+    pg.draw_line(fitz.Point(100, 400), fitz.Point(500, 400))   # W 横线
+    pg.insert_text((280, 392), "1800", fontsize=8)             # W=1800
+    pg.draw_line(fitz.Point(90, 100), fitz.Point(90, 400))     # H 竖线
+    pg.insert_text((70, 240), "1360", fontsize=8)              # H=1360
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(940, 400))   # D 横线（另一视图）
+    pg.insert_text((850, 392), "670", fontsize=8)              # D=670
+    d = vector_read.read_depth_mm(doc[0])
+    assert d == 670, f"应读出深度 670，实际 {d}"
+
+
+def test_fill_depth_from_drawing_only_missing(monkeypatch):
+    """_fill_depth_from_drawing 只补仍缺 D 的行；读不出保持空、不臆造。"""
+    from app.modules.quote import vector_read
+
+    prods = [
+        {"row_code": "A", "page": 2, "W": 1800, "H": 1360, "D": None, "confirm_dims": []},
+        {"row_code": "B", "page": 3, "W": 1000, "H": 745, "D": 500, "confirm_dims": []},   # 已有 D，不动
     ]
-    generate._apply_known_dims(products)
-    assert (products[0]["W"], products[0]["D"], products[0]["H"]) == (4000, 1140, 820)
-    assert products[0]["confirm_dims"] == []
-    assert products[1]["W"] == 3600  # 就近匹配 3600 变体
-    assert products[2]["W"] == 1900  # 就近匹配 1900 变体
-    assert (products[3]["W"], products[3]["D"], products[3]["H"]) == (1, 2, 3), "不在表的品番不动"
+    monkeypatch.setattr(vector_read, "read_depth_mm", lambda page, w_mm=None, h_mm=None: 670)
+    monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
+        "__getitem__": lambda self, i: object(), "close": lambda self: None})())
+    n = generate._fill_depth_from_drawing(prods, "x.pdf")
+    assert n == 1
+    assert prods[0]["D"] == 670 and "D" in prods[0]["confirm_dims"]
+    assert prods[1]["D"] == 500, "已有 D 的行不动"
 
 
 def test_propagate_family_depth_borrows_within_product_family():

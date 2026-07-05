@@ -171,27 +171,30 @@ def _finalize_names_materials(products: list[dict[str, Any]]) -> None:
 _NAME_SUFFIX_RE = re.compile(r"[-‐](?:[ＡＢＣA-C]?タイプ|[A-C]型|W\d+).*$")
 
 
-def _apply_known_dims(products: list[dict[str, Any]]) -> int:
-    """用既往报价核对过的权威尺寸（PRODUCT_DIMS）兜底/校正 W/D/H（零 AI）——
-    专治矢量图纸里几何量不出/量错的维（尤其深度 D）。同品番多变体按实测 W 就近匹配。
-    返回被填/改的行数。"""
-    from .product_names import PRODUCT_DIMS
+def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str) -> int:
+    """兜底补深度 D：对仍缺 D 的行，用 vector_read 从**图纸线条/文字坐标**确定性读深度（零 AI、不看图、
+    不参考任何外部 Excel）。读不出就留空（标黄待人工），绝不臆造。返回补上的行数。"""
+    from . import vector_read
 
+    need = [p for p in products if p.get("D") in (None, "", 0) and isinstance(p.get("page"), int)]
+    if not need:
+        return 0
     n = 0
-    for p in products:
-        entries = PRODUCT_DIMS.get(p.get("row_code") or "")
-        if not entries:
-            continue
-        if len(entries) == 1:
-            wdh = entries[0]
-        else:  # 多尺寸变体：按当前实测 W 就近匹配（无实测 W 时取第一个）
-            cur = p.get("W")
-            wdh = min(entries, key=lambda e: abs(e[0] - cur)) if cur else entries[0]
-        if (p.get("W"), p.get("D"), p.get("H")) != wdh:
-            n += 1
-        p["W"], p["D"], p["H"] = wdh
-        p["dim_source"] = "geometry"     # 既往报价已核对，视为已确认（不再标黄）
-        p["confirm_dims"] = []
+    d = fitz.open(pdf_local)
+    try:
+        for p in need:
+            try:
+                dep = vector_read.read_depth_mm(d[p["page"] - 1], w_mm=p.get("W"), h_mm=p.get("H"))
+            except Exception:  # noqa: BLE001
+                dep = None
+            if dep:
+                p["D"] = int(dep)
+                cd = set(p.get("confirm_dims") or [])
+                cd.add("D")   # 确定性读取仍标复核（图纸密集尺寸链，宁核一眼）
+                p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
+                n += 1
+    finally:
+        d.close()
     return n
 
 
@@ -406,8 +409,8 @@ def run(ctx) -> dict[str, Any]:
 
         products = merged_all
         _finalize_names_materials(products)  # 本地补品名（品番查表）+ 材质中日双语（零 AI）
-        _apply_known_dims(products)          # 既往报价权威尺寸兜底/校正 W/D/H（零 AI）
-        _propagate_family_depth(products)    # 同产品族借深度 D（本地推断，零 AI）
+        _propagate_family_depth(products)    # 同产品族借深度 D（同族另一页图框已量到，零 AI）
+        _fill_depth_from_drawing(products, pdf_local)  # 仍缺 D → 从图纸线条坐标确定性读（零 AI）
         _mark_duplicate_codes(products)
         payload["products"] = products
         with open(json_path, "w", encoding="utf-8") as f:

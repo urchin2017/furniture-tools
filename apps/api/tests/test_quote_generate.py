@@ -529,6 +529,29 @@ def test_read_depth_geometry_side_view_chain():
     assert d == 170, f"应读出深度 170（20+150 外形链），实际 {d}"
 
 
+def test_read_depth_geometry_outermost_line_segment_sum():
+    """几何法 C 档：最外侧尺寸线被分成两段（670│30，无显式合计）→ 段和 700 = 外形深度。
+    正面图那条≈W 的整体宽线要跳过，只在比 W 窄的侧视图上取段和。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    # 正面立面（左）：整体宽 1800 的一条线（应被跳过）
+    pg.draw_line(fitz.Point(60, 300), fitz.Point(400, 300))
+    pg.insert_text((220, 292), "1800", fontsize=8)
+    pg.draw_line(fitz.Point(55, 120), fitz.Point(55, 300))
+    pg.insert_text((40, 210), "1360", fontsize=8)
+    # 侧视图（右）：最外顶线被分段 670 + 30（同一 cy），下方另有 635 单段
+    pg.draw_line(fitz.Point(800, 200), fitz.Point(940, 200))
+    pg.insert_text((850, 192), "670", fontsize=8)
+    pg.draw_line(fitz.Point(940, 200), fitz.Point(948, 200))
+    pg.insert_text((944, 192), "30", fontsize=8)      # 与 670 共线（同 cy）
+    pg.draw_line(fitz.Point(805, 500), fitz.Point(940, 500))
+    pg.insert_text((860, 492), "635", fontsize=8)
+    d = vector_read.read_depth_geometry(doc[0], w_mm=1800, h_mm=1360)
+    assert d == 700, f"应把最外侧尺寸线两段相加得深度 700（670+30），实际 {d}"
+
+
 def test_read_depth_geometry_rejects_lone_note():
     """几何法拒绝孤立小注记（如缝隙 20）——不足以判为外形深度，返回 None（留空标黄）。"""
     from app.modules.quote import vector_read

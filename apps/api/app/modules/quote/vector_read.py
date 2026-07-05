@@ -115,13 +115,48 @@ def _is_chain(hs, tol_mm=3, tol_pct=0.02):
     return None
 
 
+_CY_TOL = 8   # 同一条横向尺寸线的文字 y 容差（px）——把 670|30 这类共线分段归到一条线
+
+
+def _outermost_line_depth(views_pts, w_mm):
+    """C) 「最外侧尺寸线」段和法：一条横向尺寸线常被分成几段（如 670│30，无显式合计 700）。
+    把同一条线（cy 相近）的各段相加得该线外形值；正面图那条线≈W（跳过），侧视图最外线即深度。
+    取各侧视图「最外线段和」的最大者。含被 _orient 误判成竖向的共线段（≥2 段成链即纳入）。"""
+    best = None
+    for vw in views_pts:
+        # 只在真正的侧视/断面视图上取段和：正面图那簇最大尺寸≈整体宽 W，整簇跳过（否则会把
+        # 正面图内部横向链误当深度）。侧视图整体比 W 窄。
+        if max((p[0] for p in vw), default=0) >= 0.9 * w_mm:
+            continue
+        # 按 cy 把该视图的尺寸文字归到各横向尺寸线
+        lines: list[list] = []
+        for p in sorted(vw, key=lambda q: q[2]):  # p = (val, cx, cy, orient)
+            for ln in lines:
+                if abs(ln[0][2] - p[2]) <= _CY_TOL:
+                    ln.append(p)
+                    break
+            else:
+                lines.append([p])
+        view_max = 0
+        for ln in lines:
+            # C 档专治「被分段的最外线」：要求 ≥2 段共线（含被误判成竖向的段）。孤立单段太弱，
+            # 留给 A/B 档判断，避免把零星注记（缝隙 20 之类）误当深度。
+            if len(ln) >= 2:
+                total = sum(p[0] for p in ln)
+                if total < 0.9 * w_mm:      # 排除正面图那条≈W 的整体宽线
+                    view_max = max(view_max, total)
+        if view_max:
+            best = view_max if best is None else max(best, view_max)
+    return best
+
+
 def _depth_from_side_view(page, w_mm, h_mm):
-    """侧视图法（几何）读深度，两条互补的「最外侧尺寸线才算外形」判据：
+    """侧视图法（几何）读深度，三条互补的「最外侧尺寸线才算外形」判据（依次尝试）：
       A) **同高侧视**：某视图竖向外形≈整体高 H、横向比整体宽 W 窄 → 该视图整体横向=深度
          （侧视图=正面图转 90°，同高）。要求 ≥2 条横向尺寸，避开孤立小注记（如缝隙 20）。
-      B) **横向尺寸链**：某簇最外层横向 ≈ 其余各段之和（如 20+150=170）、且 < 0.9·W →
-         这是一条真正的外形横向链（避开 R 角、单点注记）。取最外层。
-    A 优先（更强），A 无果用 B。多候选取最外层（最大）。读不出返回 None。"""
+      B) **横向尺寸链**：某簇最外层横向 ≈ 其余各段之和（如 20+150=170）、且 < 0.9·W。
+      C) **最外线段和**：把同一条横向尺寸线的分段相加（如 670+30=700），取侧视图最外线值。
+    A→B→C，先命中先返回；均无果返回 None（留空标黄、不臆造）。"""
     try:
         h_lines, v_lines = _segments(page.get_drawings())
         toks = _dim_tokens(page.get_text("words"))
@@ -130,8 +165,9 @@ def _depth_from_side_view(page, w_mm, h_mm):
     if not toks or not h_mm or not w_mm:
         return None
     pts = [(v, cx, cy, _orient(cx, cy, h_lines, v_lines)) for (v, cx, cy) in toks]
+    views_pts = _cluster(pts)
     views = [([p[0] for p in vw if p[3] == "h"], [p[0] for p in vw if p[3] == "v"])
-             for vw in _cluster(pts)]
+             for vw in views_pts]
     # A) 同高侧视：竖向≈H、横向<0.9W、且≥2 条横向（排除孤立注记）。
     matchH = []
     for hs, vs in views:
@@ -147,7 +183,10 @@ def _depth_from_side_view(page, w_mm, h_mm):
         c = _is_chain([x for x in hs if x < 0.9 * w_mm] or hs)
         if c is not None and c < 0.9 * w_mm:
             chains.append(c)
-    return max(chains) if chains else None
+    if chains:
+        return max(chains)
+    # C) 最外线段和（侧视图那条被分段的最外尺寸线）。
+    return _outermost_line_depth(views_pts, w_mm)
 
 
 def read_depth_prefix(page, w_mm=None):

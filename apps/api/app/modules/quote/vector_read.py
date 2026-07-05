@@ -1,20 +1,27 @@
-"""矢量图纸「确定性读取」——不靠 AI 看图，直接从 PDF 的线条坐标 + 文字坐标查尺寸。
+"""矢量图纸「确定性读取」——不靠 AI 看图，直接从 PDF 的文字/线条坐标查「深度 D」。
 
-思路（用户提供的 drawing_probe 思路）：
-- `page.get_drawings()` 拿到每条线的精确坐标；`page.get_text("words")` 拿到每个尺寸数字的包围框；
+思路（用户提供的 drawing_probe 思路 + 「最外侧尺寸线才算外形」原则）：
+- `page.get_text("words")` 拿到每个尺寸数字的包围框、`page.get_drawings()` 拿到每条线的坐标；
 - 尺寸数字贴在横线上=宽度方向、贴在竖线上=高度方向（同一坐标系，空间关联可判定）；
-- 按位置把数字聚成「视图」（立面/侧视/平面各一簇），每簇的最大横/纵向数字=该视图外形；
-- **深度 D** = 侧视/平面视图里那条「非整体宽、非整体高」的外形尺寸（跨视图出现的第三个尺寸）。
+- 按位置把数字聚成「视图」（立面/侧视/平面各一簇），每簇的最大横/纵向数字=该视图外形。
 
-已知边界（写进逻辑）：整体高的判定在多视图图纸上不稳（内部竖向尺寸可能比外形高还大），
-所以本模块**只负责补「深度 D」**——W/H 仍由 measure_dims 几何引擎给；D 补不出时返回 None（留空标黄，
-绝不臆造）。全部可回溯到坐标、可复现、可做 golden 测试。
+深度 D 的两级确定性读取（越靠前越可靠）：
+  1) **显式 D 前缀注记**（D500 / D580 / D30…）——SEKI 图在图内直接把深度写成「D+数值」，
+     这是最可靠的深度来源，直接取用（多个取最外/最大）。
+  2) **侧视图法**（几何）：深度 = 那张「侧视/断面视图」的整体横向尺寸——它与正面图**同高**
+     （竖向外形 ≈ 整体高 H），但横向比整体宽 W 窄。正是「最外侧尺寸线才算外形」：
+     取该视图最外层横向链，避开内部尺寸链/半块详图/引出注记（R30、20 这类小簇会被排除）。
+
+已知边界：整体高 H、整体宽 W 仍由 measure_dims 几何引擎给；D 补不出时返回 None
+（宁留空标黄、绝不臆造，也绝不参考外部 Excel）。全部可回溯到坐标、可复现、可做 golden 测试。
 """
 from __future__ import annotations
 
 import re
 
 _DIM_RE = re.compile(r"^[WHDwhdØφ]?\s*[=＝]?\s*(\d{2,5})(?:\.\d+)?\s*(?:mm|MM|㎜)?$")
+# 显式深度注记：D500 / D=580 / ｄ30（全/半角 D，可带 = ＝）。
+_DEPTH_PREFIX_RE = re.compile(r"^[Dd]\s*[=＝]?\s*(\d{2,5})(?:\.\d+)?$")
 _FLAT_TOL = 1.5
 _NEAR_TOL = 25
 _MIN_MM, _MAX_MM = 20, 8000
@@ -43,6 +50,21 @@ def _dim_tokens(words):
             if _MIN_MM <= val <= _MAX_MM:
                 out.append((val, (x0 + x1) / 2, (y0 + y1) / 2))
     return out
+
+
+def _prefixed_depth(words, w_mm=None):
+    """取显式「D+数值」深度注记（最可靠）。多个取最外/最大；返回 None 表示图上没写。"""
+    vals = []
+    for (x0, y0, x1, y1, text, *_rest) in words:
+        m = _DEPTH_PREFIX_RE.match((text or "").strip())
+        if m:
+            v = int(m.group(1))
+            if _MIN_MM <= v <= _MAX_MM:
+                vals.append(v)
+    if not vals:
+        return None
+    # 同页多张视图可能各写一次 D（如连续页），取最外层=最大值。
+    return max(vals)
 
 
 def _orient(cx, cy, h_lines, v_lines):
@@ -81,32 +103,70 @@ def _cluster(pts, gap=130):
     return list(groups.values())
 
 
-def read_depth_mm(page, w_mm=None, h_mm=None):
-    """确定性读取「深度 D」(mm)：视图聚类后取那条既非整体宽、又非整体高的外形跨尺寸。
-    读不出返回 None（宁留空标黄，不臆造）。w_mm/h_mm 若给出用于排除 W/H 本身。"""
+def _is_chain(hs, tol_mm=3, tol_pct=0.02):
+    """一簇横向尺寸是否构成「尺寸链」：最外层 ≈ 其余各段之和（如 20+150=170）。
+    是则最外层就是该视图的外形横向尺寸（最外侧尺寸线才算外形）；返回该外形值，否则 None。"""
+    if len(hs) < 2:
+        return None
+    top = max(hs)
+    rest = sum(hs) - top
+    if abs(top - rest) <= max(tol_mm, top * tol_pct):
+        return top
+    return None
+
+
+def _depth_from_side_view(page, w_mm, h_mm):
+    """侧视图法（几何）读深度，两条互补的「最外侧尺寸线才算外形」判据：
+      A) **同高侧视**：某视图竖向外形≈整体高 H、横向比整体宽 W 窄 → 该视图整体横向=深度
+         （侧视图=正面图转 90°，同高）。要求 ≥2 条横向尺寸，避开孤立小注记（如缝隙 20）。
+      B) **横向尺寸链**：某簇最外层横向 ≈ 其余各段之和（如 20+150=170）、且 < 0.9·W →
+         这是一条真正的外形横向链（避开 R 角、单点注记）。取最外层。
+    A 优先（更强），A 无果用 B。多候选取最外层（最大）。读不出返回 None。"""
     try:
         h_lines, v_lines = _segments(page.get_drawings())
         toks = _dim_tokens(page.get_text("words"))
     except Exception:  # noqa: BLE001
         return None
-    if not toks or (not h_lines and not v_lines):
+    if not toks or not h_mm or not w_mm:
         return None
     pts = [(v, cx, cy, _orient(cx, cy, h_lines, v_lines)) for (v, cx, cy) in toks]
-    W = w_mm or max((p[0] for p in pts if p[3] == "h"), default=0)
-    H = h_mm or max((p[0] for p in pts if p[3] == "v"), default=0)
-    if not W or not H:
+    views = [([p[0] for p in vw if p[3] == "h"], [p[0] for p in vw if p[3] == "v"])
+             for vw in _cluster(pts)]
+    # A) 同高侧视：竖向≈H、横向<0.9W、且≥2 条横向（排除孤立注记）。
+    matchH = []
+    for hs, vs in views:
+        if len(hs) >= 2 and vs:
+            h_overall, v_overall = max(hs), max(vs)
+            if 0.8 * h_mm <= v_overall <= 1.03 * h_mm and h_overall < 0.9 * w_mm:
+                matchH.append(h_overall)
+    if matchH:
+        return max(matchH)
+    # B) 横向尺寸链：最外层≈其余之和、<0.9W。
+    chains = []
+    for hs, _vs in views:
+        c = _is_chain([x for x in hs if x < 0.9 * w_mm] or hs)
+        if c is not None and c < 0.9 * w_mm:
+            chains.append(c)
+    return max(chains) if chains else None
+
+
+def read_depth_prefix(page, w_mm=None):
+    """只取显式「D 前缀」深度注记（最可靠）。读不出返回 None。"""
+    try:
+        return _prefixed_depth(page.get_text("words"), w_mm)
+    except Exception:  # noqa: BLE001
         return None
-    # 各视图里「小于整体宽的最大横向」或「小于整体高的最大纵向」都是深度候选；取其最大。
-    cand = []
-    for view in _cluster(pts):
-        hs = [p[0] for p in view if p[3] == "h"]
-        vs = [p[0] for p in view if p[3] == "v"]
-        if hs:
-            mh = max(hs)
-            if mh < W * 0.98:
-                cand.append(mh)
-        if vs:
-            mv = max(vs)
-            if mv < H * 0.98:
-                cand.append(mv)
-    return max(cand) if cand else None
+
+
+def read_depth_geometry(page, w_mm=None, h_mm=None):
+    """只用侧视图几何法读深度（在 D 前缀、同族借用都无果后的最后一档）。读不出返回 None。"""
+    return _depth_from_side_view(page, w_mm, h_mm)
+
+
+def read_depth_mm(page, w_mm=None, h_mm=None):
+    """确定性读取「深度 D」(mm)：先取显式「D 前缀」注记，再退回侧视图几何法。
+    读不出返回 None（宁留空标黄、不臆造，绝不参考外部 Excel）。"""
+    d = read_depth_prefix(page, w_mm)
+    if d is not None:
+        return d
+    return _depth_from_side_view(page, w_mm, h_mm)

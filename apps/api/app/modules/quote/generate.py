@@ -171,11 +171,13 @@ def _finalize_names_materials(products: list[dict[str, Any]]) -> None:
 _NAME_SUFFIX_RE = re.compile(r"[-‐](?:[ＡＢＣA-C]?タイプ|[A-C]型|W\d+).*$")
 
 
-def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str) -> int:
-    """兜底补深度 D：对仍缺 D 的行，用 vector_read 从**图纸线条/文字坐标**确定性读深度（零 AI、不看图、
-    不参考任何外部 Excel）。读不出就留空（标黄待人工），绝不臆造。返回补上的行数。"""
+def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str, reader: str) -> int:
+    """兜底补深度 D：对仍缺 D 的行，从**图纸线条/文字坐标**确定性读深度（零 AI、不看图、不参考外部 Excel）。
+    `reader` 选读法：'prefix'=只取显式「D 前缀」注记（最可靠，应在同族借用前跑）；
+    'geometry'=侧视图几何法（最后一档）。读不出留空（标黄待人工），绝不臆造。返回补上的行数。"""
     from . import vector_read
 
+    fn = vector_read.read_depth_prefix if reader == "prefix" else vector_read.read_depth_geometry
     need = [p for p in products if p.get("D") in (None, "", 0) and isinstance(p.get("page"), int)]
     if not need:
         return 0
@@ -184,7 +186,10 @@ def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str) -> 
     try:
         for p in need:
             try:
-                dep = vector_read.read_depth_mm(d[p["page"] - 1], w_mm=p.get("W"), h_mm=p.get("H"))
+                if reader == "prefix":
+                    dep = fn(d[p["page"] - 1], w_mm=p.get("W"))
+                else:
+                    dep = fn(d[p["page"] - 1], w_mm=p.get("W"), h_mm=p.get("H"))
             except Exception:  # noqa: BLE001
                 dep = None
             if dep:
@@ -409,8 +414,9 @@ def run(ctx) -> dict[str, Any]:
 
         products = merged_all
         _finalize_names_materials(products)  # 本地补品名（品番查表）+ 材质中日双语（零 AI）
+        _fill_depth_from_drawing(products, pdf_local, "prefix")   # 先取图上显式「D 前缀」深度（最可靠）
         _propagate_family_depth(products)    # 同产品族借深度 D（同族另一页图框已量到，零 AI）
-        _fill_depth_from_drawing(products, pdf_local)  # 仍缺 D → 从图纸线条坐标确定性读（零 AI）
+        _fill_depth_from_drawing(products, pdf_local, "geometry")  # 仍缺 D → 侧视图几何法（最后一档，零 AI）
         _mark_duplicate_codes(products)
         payload["products"] = products
         with open(json_path, "w", encoding="utf-8") as f:

@@ -499,21 +499,45 @@ def test_finalize_makes_materials_bilingual():
     assert any("メラミン化粧板" in m or "フォーミカ" in m for m in q["mat_jp"]), "防火板/富美家→日文"
 
 
-def test_read_depth_from_drawing_deterministic():
-    """确定性读深度：合成一页——立面(W×H) + 侧视(D×H) 两视图，读出深度=侧视横向且<W。"""
+def test_read_depth_prefix_explicit_token():
+    """显式「D 前缀」注记（D500）是最可靠的深度来源，直接取用。"""
     from app.modules.quote import vector_read
 
     doc = fitz.open()
     pg = doc.new_page(width=1200, height=842)
-    # 立面图（左）：宽 W 的横线 + 高 H 的竖线；侧视图（右）：深 D 的横线（D<W）
-    pg.draw_line(fitz.Point(100, 400), fitz.Point(500, 400))   # W 横线
-    pg.insert_text((280, 392), "1800", fontsize=8)             # W=1800
-    pg.draw_line(fitz.Point(90, 100), fitz.Point(90, 400))     # H 竖线
-    pg.insert_text((70, 240), "1360", fontsize=8)              # H=1360
-    pg.draw_line(fitz.Point(800, 400), fitz.Point(940, 400))   # D 横线（另一视图）
-    pg.insert_text((850, 392), "670", fontsize=8)              # D=670
-    d = vector_read.read_depth_mm(doc[0])
-    assert d == 670, f"应读出深度 670，实际 {d}"
+    pg.insert_text((300, 400), "W1000", fontsize=8)
+    pg.insert_text((300, 420), "D500", fontsize=8)     # 显式深度
+    pg.insert_text((300, 440), "H745", fontsize=8)
+    assert vector_read.read_depth_prefix(doc[0]) == 500
+    assert vector_read.read_depth_mm(doc[0]) == 500    # 级联也应命中前缀
+
+
+def test_read_depth_geometry_side_view_chain():
+    """几何法：侧视图横向尺寸链（20+150=170）= 该视图外形深度；<整体宽 W。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    # 侧视图（右）：横向链 20 + 150 = 170，且带竖向 ≈ H
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(820, 400))
+    pg.insert_text((805, 392), "20", fontsize=8)
+    pg.draw_line(fitz.Point(820, 400), fitz.Point(970, 400))
+    pg.insert_text((880, 392), "150", fontsize=8)
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(970, 400))
+    pg.insert_text((870, 380), "170", fontsize=8)
+    d = vector_read.read_depth_geometry(doc[0], w_mm=886, h_mm=1316)
+    assert d == 170, f"应读出深度 170（20+150 外形链），实际 {d}"
+
+
+def test_read_depth_geometry_rejects_lone_note():
+    """几何法拒绝孤立小注记（如缝隙 20）——不足以判为外形深度，返回 None（留空标黄）。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(810, 400))
+    pg.insert_text((802, 392), "20", fontsize=8)        # 孤立一个数，非链、非同高侧视
+    assert vector_read.read_depth_geometry(doc[0], w_mm=700, h_mm=770) is None
 
 
 def test_fill_depth_from_drawing_only_missing(monkeypatch):
@@ -524,13 +548,27 @@ def test_fill_depth_from_drawing_only_missing(monkeypatch):
         {"row_code": "A", "page": 2, "W": 1800, "H": 1360, "D": None, "confirm_dims": []},
         {"row_code": "B", "page": 3, "W": 1000, "H": 745, "D": 500, "confirm_dims": []},   # 已有 D，不动
     ]
-    monkeypatch.setattr(vector_read, "read_depth_mm", lambda page, w_mm=None, h_mm=None: 670)
+    monkeypatch.setattr(vector_read, "read_depth_geometry", lambda page, w_mm=None, h_mm=None: 670)
     monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
         "__getitem__": lambda self, i: object(), "close": lambda self: None})())
-    n = generate._fill_depth_from_drawing(prods, "x.pdf")
+    n = generate._fill_depth_from_drawing(prods, "x.pdf", "geometry")
     assert n == 1
     assert prods[0]["D"] == 670 and "D" in prods[0]["confirm_dims"]
     assert prods[1]["D"] == 500, "已有 D 的行不动"
+
+
+def test_fill_depth_prefix_pass_runs_before_family(monkeypatch):
+    """prefix 档只用 read_depth_prefix（显式 D 注记），且在同族借用之前执行。"""
+    from app.modules.quote import vector_read
+
+    prods = [{"row_code": "CIY_D-01", "page": 8, "W": 1000, "H": 745, "D": None, "confirm_dims": []}]
+    monkeypatch.setattr(vector_read, "read_depth_prefix", lambda page, w_mm=None: 500)
+    monkeypatch.setattr(vector_read, "read_depth_geometry",
+                        lambda page, w_mm=None, h_mm=None: 999)  # 不应被 prefix 档调用
+    monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
+        "__getitem__": lambda self, i: object(), "close": lambda self: None})())
+    n = generate._fill_depth_from_drawing(prods, "x.pdf", "prefix")
+    assert n == 1 and prods[0]["D"] == 500
 
 
 def test_propagate_family_depth_borrows_within_product_family():

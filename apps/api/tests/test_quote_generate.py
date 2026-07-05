@@ -499,6 +499,32 @@ def test_finalize_makes_materials_bilingual():
     assert any("メラミン化粧板" in m or "フォーミカ" in m for m in q["mat_jp"]), "防火板/富美家→日文"
 
 
+def test_propagate_family_depth_borrows_within_product_family():
+    """同产品族借深度：デスク族借 500、バンクベッド族借 1275；独一无二的产品保持空（不臆造）。"""
+    products = [
+        {"row_code": "CIY_D-01", "name_jp": "デスク-Aタイプ", "W": 1000, "D": 500, "H": 745, "confirm_dims": []},
+        {"row_code": "CIY_D-02", "name_jp": "デスク-Bタイプ", "W": 1000, "D": None, "H": 745, "confirm_dims": []},
+        {"row_code": "CIY_B-01", "name_jp": "バンクベッド-Aタイプ", "W": 2095, "D": None, "H": 1535, "confirm_dims": []},
+        {"row_code": "CIY_B-02", "name_jp": "バンクベッド-Bタイプ", "W": 2215, "D": 1275, "H": 2265, "confirm_dims": []},
+        {"row_code": "CIY_L-01", "name_jp": "ビッグテーブル（LOUNGE）", "W": 4000, "D": None, "H": 2700, "confirm_dims": []},
+    ]
+    generate._propagate_family_depth(products)
+    assert products[1]["D"] == 500 and "D" in products[1]["confirm_dims"], "デスク族借 500"
+    assert products[2]["D"] == 1275, "バンクベッド族借 1275"
+    assert products[4]["D"] is None, "独一无二的产品不臆造深度"
+
+
+def test_local_axis_geometry_fallback_fills_wh_without_titleblock():
+    """图框无注记时，W/H 用几何引擎 overall_value 兜底填（本地零 AI），标复核。"""
+    measured = {"vector_ok": True, "confidence": "mid",
+                "W": {"overall_value": 4000, "extent_ok": False, "suspect_local": True},
+                "H": {"overall_value": 2700, "extent_ok": False, "suspect_local": True}}
+    w, ws_, wflag = dims._local_axis(measured, {"W": None, "D": None, "H": None}, "W")
+    assert w == 4000 and wflag is True, "几何兜底填 W 并标复核"
+    h, hs_, _ = dims._local_axis(measured, {}, "H")
+    assert h == 2700
+
+
 def test_handler_auto_never_calls_ai_on_vector(storage_supabase, monkeypatch):
     """矢量图纸在智能模式下**坚决不调 AI**（成本 0），品名靠本地查表、材质靠术语表补。"""
     class _NoAIClaude:

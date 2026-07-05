@@ -168,6 +168,29 @@ def _finalize_names_materials(products: list[dict[str, Any]]) -> None:
             p["mat_jp"], p["mat_cn"] = _bilingual_materials([], mc)
 
 
+_NAME_SUFFIX_RE = re.compile(r"[-‐](?:[ＡＢＣA-C]?タイプ|[A-C]型|W\d+).*$")
+
+
+def _propagate_family_depth(products: list[dict[str, Any]]) -> None:
+    """同一产品族（同品名，去掉 -Aタイプ/-W宽 后缀）内，某行缺 D → 借同族已知的 D
+    （同产品线通常同深度，如 デスク-A/B/C 都 D500）。纯本地推断、标复核，不臆造任意数。"""
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for p in products:
+        base = _NAME_SUFFIX_RE.sub("", str(p.get("name_jp") or "").strip())
+        if base:
+            groups.setdefault(base, []).append(p)
+    for grp in groups.values():
+        donor = next((q.get("D") for q in grp if q.get("D") not in (None, "", 0)), None)
+        if donor is None:
+            continue
+        for p in grp:
+            if p.get("D") in (None, "", 0):
+                p["D"] = donor
+                cd = set(p.get("confirm_dims") or [])
+                cd.add("D")
+                p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
+
+
 def _missing_fields(p: dict[str, Any]) -> list[str]:
     """一条记录缺哪些必填字段（材质/品名/尺寸/数量）。"""
     miss = []
@@ -359,6 +382,7 @@ def run(ctx) -> dict[str, Any]:
 
         products = merged_all
         _finalize_names_materials(products)  # 本地补品名（品番查表）+ 材质中日双语（零 AI）
+        _propagate_family_depth(products)    # 同产品族借深度 D（本地推断，零 AI）
         _mark_duplicate_codes(products)
         payload["products"] = products
         with open(json_path, "w", encoding="utf-8") as f:

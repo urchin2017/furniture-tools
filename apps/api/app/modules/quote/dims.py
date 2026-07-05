@@ -301,6 +301,11 @@ def _local_axis(measured: dict, text_dims: dict, axis: str) -> tuple[int | None,
         return gv, "geometry", mismatch
     if tv is not None:
         return tv, "text", True  # 纯靠文字注记 → 一律复核（可能是分割/局部寸法）
+    # 兜底（图框无注记时）：采用几何引擎量到的**外形尺寸链** overall_value，即便中/低置信也用——
+    # 尺寸线本就在图上、纯 Python 量取、零 AI，胜过留空；一律标复核（confirm）。
+    ov = a.get("overall_value")
+    if measured.get("vector_ok") and ov is not None:
+        return int(round(ov)), "geometry_lc", True
     return None, "none", True
 
 

@@ -114,6 +114,34 @@ def test_geometry_segment_sum_outermost_line():
     assert vr.read_depth_geometry(doc[0], w_mm=1800, h_mm=1360) == 700
 
 
+def test_geometry_plan_view_vertical_depth():
+    """T1 平面图竖向深度：正面图正上方那张俯视图，深度画成竖向（书桌 400）。"""
+    doc, pg = _page()
+    # 俯视图（上方）：竖向外形 400（15+385），横向只有很小的 R 角注记
+    _vdim(pg, 120, 300, 300, 400)
+    _vdim(pg, 130, 300, 320, 385)
+    _hdim(pg, 300, 320, 305, 60)
+    # 正面立面（下方）：宽 1000、高 745
+    _hdim(pg, 200, 560, 620, 1000)
+    _vdim(pg, 480, 620, 190, 745)
+    assert vr.read_depth_geometry(doc[0], w_mm=1000, h_mm=745, strong_only=True) == 400
+
+
+def test_geometry_repeated_overall_takes_max():
+    """T3 重复外形线：同一深度值在≥2 条横线上出现（端视图上下各标一次 1300）→ 取最大，
+    盖过同高侧视里更小但更“干净”的 1140。"""
+    doc, pg = _page()
+    # 深度 1300：端视图上、下各一条（595+110+595 / 425+450+425 无显式合计）
+    for y in (250, 500):
+        _hdim(pg, 100, 175, y, 595)
+        _hdim(pg, 175, 189, y, 110)
+        _hdim(pg, 189, 264, y, 595)
+    # 另一处标识座 1140（单条），不应压过 1300
+    _hdim(pg, 800, 900, 300, 1140)
+    _vdim(pg, 120, 300, 795, 2700)
+    assert vr.read_depth_geometry(doc[0], w_mm=4000, h_mm=2700, strong_only=True) == 1300
+
+
 # ══════════════════════════════ 三、回归：锁死已修复的 bug ═══════════════════
 def test_regression_hb02_reads_170_not_radius_note():
     """HB-02：曾误读 R30 的 30；应读侧视外形链 20+150=170。"""
@@ -147,6 +175,21 @@ def test_regression_l02_reads_700_segment_sum():
 
 
 # ══════════════════════════════ 四、边界 / 异常 ══════════════════════════════
+class _TextPage:
+    def __init__(self, text):
+        self._t = text
+
+    def get_text(self, *_a, **_k):
+        return self._t
+
+
+def test_read_width_diff_note():
+    """图上「サイズ違い（W-100）」尺寸差注记 → 宽度增量 -100（据此把 W2000 改成 1900）。"""
+    assert vr.read_width_diff(_TextPage("CIY_B-03のサイズ違い（W-100）")) == -100
+    assert vr.read_width_diff(_TextPage("variant (W+50)")) == 50       # 半角括号/加号
+    assert vr.read_width_diff(_TextPage("ヘッドボード")) == 0            # 无注记 → 0
+
+
 def test_empty_page_returns_none():
     doc, _pg = _page()
     assert vr.read_depth_mm(doc[0], w_mm=1000, h_mm=1000) is None

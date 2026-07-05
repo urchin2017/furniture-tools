@@ -173,11 +173,13 @@ _NAME_SUFFIX_RE = re.compile(r"[-‐](?:[ＡＢＣA-C]?タイプ|[A-C]型|W\d+).
 
 def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str, reader: str) -> int:
     """兜底补深度 D：对仍缺 D 的行，从**图纸线条/文字坐标**确定性读深度（零 AI、不看图、不参考外部 Excel）。
-    `reader` 选读法：'prefix'=只取显式「D 前缀」注记（最可靠，应在同族借用前跑）；
-    'geometry'=侧视图几何法（最后一档）。读不出留空（标黄待人工），绝不臆造。返回补上的行数。"""
+    `reader` 选读法：
+      'prefix'      = 只取显式「D 前缀」注记（最可靠，最先跑）；
+      'geom_strong' = 几何强档 T1–T3（信号明确，跑在同族借用之前，可盖过借用——书桌 400≠同族 500）；
+      'geometry'    = 几何弱档兜底 T4（跑在同族借用之后，同族更可信时已让位）。
+    读不出留空（标黄待人工），绝不臆造。返回补上的行数。"""
     from . import vector_read
 
-    fn = vector_read.read_depth_prefix if reader == "prefix" else vector_read.read_depth_geometry
     need = [p for p in products if p.get("D") in (None, "", 0) and isinstance(p.get("page"), int)]
     if not need:
         return 0
@@ -187,15 +189,44 @@ def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str, rea
         for p in need:
             try:
                 if reader == "prefix":
-                    dep = fn(d[p["page"] - 1], w_mm=p.get("W"))
+                    dep = vector_read.read_depth_prefix(d[p["page"] - 1], w_mm=p.get("W"))
                 else:
-                    dep = fn(d[p["page"] - 1], w_mm=p.get("W"), h_mm=p.get("H"))
+                    dep = vector_read.read_depth_geometry(
+                        d[p["page"] - 1], w_mm=p.get("W"), h_mm=p.get("H"),
+                        strong_only=(reader == "geom_strong"))
             except Exception:  # noqa: BLE001
                 dep = None
             if dep:
                 p["D"] = int(dep)
                 cd = set(p.get("confirm_dims") or [])
                 cd.add("D")   # 确定性读取仍标复核（图纸密集尺寸链，宁核一眼）
+                p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
+                n += 1
+    finally:
+        d.close()
+    return n
+
+
+def _apply_width_diff_notes(products: list[dict[str, Any]], pdf_local: str) -> int:
+    """按图上「尺寸差」注记（如「CIY_B-03のサイズ違い（W-100）」）修正整体宽 W：W2000 → 1900。
+    图纸自带、机器可读的修正，据此改正仍是「依据图纸」（标题里的手改 W1900 是图片、取不到）。返回修正行数。"""
+    from . import vector_read
+
+    have = [p for p in products if isinstance(p.get("page"), int) and p.get("W")]
+    if not have:
+        return 0
+    n = 0
+    d = fitz.open(pdf_local)
+    try:
+        for p in have:
+            try:
+                delta = vector_read.read_width_diff(d[p["page"] - 1])
+            except Exception:  # noqa: BLE001
+                delta = 0
+            if delta and p["W"] + delta > 0:
+                p["W"] = int(p["W"] + delta)
+                cd = set(p.get("confirm_dims") or [])
+                cd.add("W")
                 p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
                 n += 1
     finally:
@@ -413,10 +444,12 @@ def run(ctx) -> dict[str, Any]:
             merged_all.extend(dims.merge_page_decision(recs, decision))
 
         products = merged_all
-        _finalize_names_materials(products)  # 本地补品名（品番查表）+ 材质中日双语（零 AI）
-        _fill_depth_from_drawing(products, pdf_local, "prefix")   # 先取图上显式「D 前缀」深度（最可靠）
-        _propagate_family_depth(products)    # 同产品族借深度 D（同族另一页图框已量到，零 AI）
-        _fill_depth_from_drawing(products, pdf_local, "geometry")  # 仍缺 D → 侧视图几何法（最后一档，零 AI）
+        _apply_width_diff_notes(products, pdf_local)  # 先按图上「W-100」尺寸差注记修正整体宽（W2000→1900），再命名
+        _finalize_names_materials(products)  # 本地补品名（品番查表，变体按修正后 W 加 -W宽）+ 材质中日双语（零 AI）
+        _fill_depth_from_drawing(products, pdf_local, "prefix")      # ① 图上显式「D 前缀」深度（最可靠）
+        _fill_depth_from_drawing(products, pdf_local, "geom_strong")  # ② 几何强档 T1–T3（书桌俯视 400 等，盖过借用）
+        _propagate_family_depth(products)    # ③ 同产品族借深度 D（冰箱柜 580 等，零 AI）
+        _fill_depth_from_drawing(products, pdf_local, "geometry")    # ④ 几何弱档兜底 T4（返却台 670+30=700）
         _mark_duplicate_codes(products)
         payload["products"] = products
         with open(json_path, "w", encoding="utf-8") as f:

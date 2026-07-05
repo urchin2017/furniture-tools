@@ -571,7 +571,8 @@ def test_fill_depth_from_drawing_only_missing(monkeypatch):
         {"row_code": "A", "page": 2, "W": 1800, "H": 1360, "D": None, "confirm_dims": []},
         {"row_code": "B", "page": 3, "W": 1000, "H": 745, "D": 500, "confirm_dims": []},   # 已有 D，不动
     ]
-    monkeypatch.setattr(vector_read, "read_depth_geometry", lambda page, w_mm=None, h_mm=None: 670)
+    monkeypatch.setattr(vector_read, "read_depth_geometry",
+                        lambda page, w_mm=None, h_mm=None, strong_only=False: 670)
     monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
         "__getitem__": lambda self, i: object(), "close": lambda self: None})())
     n = generate._fill_depth_from_drawing(prods, "x.pdf", "geometry")
@@ -607,6 +608,40 @@ def test_propagate_family_depth_borrows_within_product_family():
     assert products[1]["D"] == 500 and "D" in products[1]["confirm_dims"], "デスク族借 500"
     assert products[2]["D"] == 1275, "バンクベッド族借 1275"
     assert products[4]["D"] is None, "独一无二的产品不臆造深度"
+
+
+def test_fill_depth_geom_strong_only_runs_strong_tiers(monkeypatch):
+    """geom_strong 档只跑几何强档（strong_only=True）——用来在同族借用前盖过借用（书桌 400≠族 500）。"""
+    from app.modules.quote import vector_read
+
+    calls = {}
+    def fake(page, w_mm=None, h_mm=None, strong_only=False):
+        calls["strong_only"] = strong_only
+        return 400 if strong_only else 999
+    monkeypatch.setattr(vector_read, "read_depth_geometry", fake)
+    monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
+        "__getitem__": lambda self, i: object(), "close": lambda self: None})())
+    prods = [{"row_code": "CIY_D-02", "page": 9, "W": 1000, "H": 745, "D": None, "confirm_dims": []}]
+    generate._fill_depth_from_drawing(prods, "x.pdf", "geom_strong")
+    assert calls["strong_only"] is True and prods[0]["D"] == 400
+
+
+def test_pipeline_order_strong_geometry_beats_family_but_weak_defers():
+    """管线次序：几何强档在同族借用前（书桌各读各的 400，不被 D-01 的 500 借错）；
+    弱档在借用后兜底（冰箱柜 RE-03 借 580，而非几何弱读的基座值）。"""
+    # 模拟强档：只有书桌读到 400；冰箱柜强档读不到（None）→ 交给同族借用。
+    desks = [
+        {"row_code": "CIY_D-01", "name_jp": "デスク-Aタイプ", "W": 1000, "D": 500, "H": 745, "confirm_dims": []},
+        {"row_code": "CIY_D-02", "name_jp": "デスク-Bタイプ", "W": 1000, "D": 400, "H": 745, "confirm_dims": []},
+    ]
+    generate._propagate_family_depth(desks)
+    assert desks[1]["D"] == 400, "书桌 D-02 已由强档读到 400，同族借用不得覆盖成 500"
+    fridges = [
+        {"row_code": "CIY_RE-01", "name_jp": "冷蔵庫収納-Aタイプ", "W": 610, "D": 580, "H": 1330, "confirm_dims": []},
+        {"row_code": "CIY_RE-03", "name_jp": "冷蔵庫収納-Cタイプ", "W": 1100, "D": None, "H": 970, "confirm_dims": []},
+    ]
+    generate._propagate_family_depth(fridges)
+    assert fridges[1]["D"] == 580, "RE-03 强档无果 → 同族借用 580"
 
 
 def test_local_axis_geometry_fallback_fills_wh_without_titleblock():

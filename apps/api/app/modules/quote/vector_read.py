@@ -115,48 +115,41 @@ def _is_chain(hs, tol_mm=3, tol_pct=0.02):
     return None
 
 
-_CY_TOL = 8   # 同一条横向尺寸线的文字 y 容差（px）——把 670|30 这类共线分段归到一条线
+_CY_TOL = 8   # 同一条尺寸线的文字坐标容差（px）——把 670│30 这类共线分段归到一条线
 
 
-def _outermost_line_depth(views_pts, w_mm):
-    """C) 「最外侧尺寸线」段和法：一条横向尺寸线常被分成几段（如 670│30，无显式合计 700）。
-    把同一条线（cy 相近）的各段相加得该线外形值；正面图那条线≈W（跳过），侧视图最外线即深度。
-    取各侧视图「最外线段和」的最大者。含被 _orient 误判成竖向的共线段（≥2 段成链即纳入）。"""
-    best = None
-    for vw in views_pts:
-        # 只在真正的侧视/断面视图上取段和：正面图那簇最大尺寸≈整体宽 W，整簇跳过（否则会把
-        # 正面图内部横向链误当深度）。侧视图整体比 W 窄。
-        if max((p[0] for p in vw), default=0) >= 0.9 * w_mm:
-            continue
-        # 按 cy 把该视图的尺寸文字归到各横向尺寸线
-        lines: list[list] = []
-        for p in sorted(vw, key=lambda q: q[2]):  # p = (val, cx, cy, orient)
-            for ln in lines:
-                if abs(ln[0][2] - p[2]) <= _CY_TOL:
-                    ln.append(p)
-                    break
-            else:
-                lines.append([p])
-        view_max = 0
+def _h_totals(vw):
+    """横向尺寸线：按 cy 把文字归组求段和。**只保留至少含一个真横向 token 的线**——
+    这样把 670│30（含被误判成竖向的 30）算进来，却排除「两个竖向标注恰好同高」（如 L-01 的两个 2700）。
+    返回 [(段和, token数)…]。"""
+    lines: list[list] = []
+    for p in sorted(vw, key=lambda q: q[2]):
         for ln in lines:
-            # C 档专治「被分段的最外线」：要求 ≥2 段共线（含被误判成竖向的段）。孤立单段太弱，
-            # 留给 A/B 档判断，避免把零星注记（缝隙 20 之类）误当深度。
-            if len(ln) >= 2:
-                total = sum(p[0] for p in ln)
-                if total < 0.9 * w_mm:      # 排除正面图那条≈W 的整体宽线
-                    view_max = max(view_max, total)
-        if view_max:
-            best = view_max if best is None else max(best, view_max)
-    return best
+            if abs(ln[0][2] - p[2]) <= _CY_TOL:
+                ln.append(p)
+                break
+        else:
+            lines.append([p])
+    return [(sum(x[0] for x in ln), len(ln)) for ln in lines
+            if any(x[3] == "h" for x in ln)]
 
 
-def _depth_from_side_view(page, w_mm, h_mm):
-    """侧视图法（几何）读深度，三条互补的「最外侧尺寸线才算外形」判据（依次尝试）：
-      A) **同高侧视**：某视图竖向外形≈整体高 H、横向比整体宽 W 窄 → 该视图整体横向=深度
-         （侧视图=正面图转 90°，同高）。要求 ≥2 条横向尺寸，避开孤立小注记（如缝隙 20）。
-      B) **横向尺寸链**：某簇最外层横向 ≈ 其余各段之和（如 20+150=170）、且 < 0.9·W。
-      C) **最外线段和**：把同一条横向尺寸线的分段相加（如 670+30=700），取侧视图最外线值。
-    A→B→C，先命中先返回；均无果返回 None（留空标黄、不臆造）。"""
+def _is_front_view(vw, w_mm):
+    """正面/平面主视图：含一条 ≈ 整体宽 W 的横向尺寸线（其内部分段不能当深度）。"""
+    return any(tot >= 0.9 * w_mm for tot, _ in _h_totals(vw))
+
+
+def _depth_from_side_view(page, w_mm, h_mm, strong_only=False):
+    """几何法读深度，按「最外侧尺寸线才算外形」分档（依次尝试，先命中先返回）：
+      T1 **平面图竖向深度**：正面图正上方那张「竖向主导」的平面/俯视图，其竖向外形即深度
+         （书桌类：深度 400 画在俯视图上、方向是竖的）。
+      T2 **窄侧视链**：某簇一条干净的横向尺寸链（最外≈各段和）、且深度 < 0.25·W —— 真正的窄侧视
+         （挂衣套装 20+150=170、标识牌 60）。避开大尺寸的内部链与零件详图。
+      T3 **重复外形线**：同一深度值出现在 ≥2 条横线上（端视图上下各标一次，如 1300），取最大 ——
+         多体产品（大长桌+标识）取最外体的进深。
+      T4 **最外线段和**：非正面视图里最外那条横线的分段之和（返却台 670+30=700）。
+    T1–T3 为「强档」（信号明确，可盖过同族借用）；T4 为「弱档」（同族借用更可信时让位）。
+    `strong_only=True` 只跑 T1–T3。均无果返回 None（留空标黄、绝不臆造）。"""
     try:
         h_lines, v_lines = _segments(page.get_drawings())
         toks = _dim_tokens(page.get_text("words"))
@@ -166,27 +159,64 @@ def _depth_from_side_view(page, w_mm, h_mm):
         return None
     pts = [(v, cx, cy, _orient(cx, cy, h_lines, v_lines)) for (v, cx, cy) in toks]
     views_pts = _cluster(pts)
-    views = [([p[0] for p in vw if p[3] == "h"], [p[0] for p in vw if p[3] == "v"])
-             for vw in views_pts]
-    # A) 同高侧视：竖向≈H、横向<0.9W、且≥2 条横向（排除孤立注记）。
-    matchH = []
-    for hs, vs in views:
-        if len(hs) >= 2 and vs:
-            h_overall, v_overall = max(hs), max(vs)
-            if 0.8 * h_mm <= v_overall <= 1.03 * h_mm and h_overall < 0.9 * w_mm:
-                matchH.append(h_overall)
-    if matchH:
-        return max(matchH)
-    # B) 横向尺寸链：最外层≈其余之和、<0.9W。
-    chains = []
-    for hs, _vs in views:
-        c = _is_chain([x for x in hs if x < 0.9 * w_mm] or hs)
-        if c is not None and c < 0.9 * w_mm:
-            chains.append(c)
-    if chains:
-        return max(chains)
-    # C) 最外线段和（侧视图那条被分段的最外尺寸线）。
-    return _outermost_line_depth(views_pts, w_mm)
+    fronts = [vw for vw in views_pts if _is_front_view(vw, w_mm)]
+
+    # T1) 平面图竖向深度：整簇位于正面图之上、竖向外形主导（按 token 真实朝向判断）、且 < 0.7H。
+    front_top = min((p[2] for vw in fronts for p in vw), default=None)
+    if front_top is not None:
+        planv = []
+        for vw in views_pts:
+            if vw in fronts or max(p[2] for p in vw) > front_top:
+                continue
+            mv = max((p[0] for p in vw if p[3] == "v"), default=0)
+            mh = max((p[0] for p in vw if p[3] == "h"), default=0)
+            if mv and mv < 0.7 * h_mm and mv > 1.5 * max(mh, 1):
+                planv.append(mv)
+        if planv:
+            return max(planv)
+
+    # T2) 窄侧视链：干净链且 < 0.25W。
+    narrow = []
+    for vw in views_pts:
+        if vw in fronts:
+            continue
+        hs = [p[0] for p in vw if p[3] == "h" and p[0] < 0.9 * w_mm]
+        c = _is_chain(hs)
+        if c is not None and c < 0.25 * w_mm:
+            narrow.append(c)
+    if narrow:
+        return max(narrow)
+
+    # T3) 重复外形线：同一深度值出现在 ≥2 条横线上（跨所有簇），取最大。
+    all_totals = [int(round(tot)) for vw in views_pts for tot, _n in _h_totals(vw)
+                  if 40 <= tot < 0.9 * w_mm]
+    repeated = [v for v in set(all_totals) if all_totals.count(v) >= 2]
+    if repeated:
+        return max(repeated)
+
+    if strong_only:                 # 弱档（T4）让位于同族借用
+        return None
+    # T4) 最外线段和（只在非正面视图里，避开正面图内部分段）。
+    nonfront = [int(round(tot)) for vw in views_pts if vw not in fronts
+                for tot, _n in _h_totals(vw) if 40 <= tot < 0.9 * w_mm]
+    return max(nonfront) if nonfront else None
+
+
+_WDIFF_RE = re.compile(r"[（(]\s*[WwＷ]\s*([-+－＋])\s*(\d{2,4})\s*[)）]")
+
+
+def read_width_diff(page):
+    """读图上「尺寸差」修正注记（如「…のサイズ違い（W-100）」）→ 返回宽度增量（-100）。
+    这是图纸自带的机器可读修正（同款变体常只标一句 W±N），据此把整体宽改对，仍是「依据图纸」。
+    无此注记返回 0。"""
+    try:
+        m = _WDIFF_RE.search(page.get_text())
+    except Exception:  # noqa: BLE001
+        return 0
+    if not m:
+        return 0
+    sign = -1 if m.group(1) in "-－" else 1
+    return sign * int(m.group(2))
 
 
 def read_depth_prefix(page, w_mm=None):
@@ -197,9 +227,10 @@ def read_depth_prefix(page, w_mm=None):
         return None
 
 
-def read_depth_geometry(page, w_mm=None, h_mm=None):
-    """只用侧视图几何法读深度（在 D 前缀、同族借用都无果后的最后一档）。读不出返回 None。"""
-    return _depth_from_side_view(page, w_mm, h_mm)
+def read_depth_geometry(page, w_mm=None, h_mm=None, strong_only=False):
+    """几何法读深度。strong_only=True 只跑强档 T1–T3（信号明确，跑在同族借用之前、可盖过借用）；
+    默认跑全部（含弱档 T4，跑在同族借用之后兜底）。读不出返回 None。"""
+    return _depth_from_side_view(page, w_mm, h_mm, strong_only=strong_only)
 
 
 def read_depth_mm(page, w_mm=None, h_mm=None):

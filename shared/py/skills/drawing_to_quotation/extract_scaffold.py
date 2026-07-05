@@ -129,6 +129,57 @@ def find_text_dims(text):
     return out
 
 
+# 标题栏（图框）品番：CIY_B-02 / TV-01 / RE-01 / HB-01 / CIY_M-01 / CIY_L-03 …
+# ——SEKI 等厂把品番放图框「DRAWING NO.」栏、正文 find_codes 抓不到，这里从图框解析。
+TITLE_CODE_RE = re.compile(r'\b([A-Z]{2,4}(?:_[A-Z0-9]{1,3})?-\d{1,3}[A-Z]?)\b')
+_DRAWNO_KEYS = ('DRAWING NO', 'DWG NO', '図番', '図面番号')
+
+
+def parse_title_block(text):
+    """从图框标题栏解析 (品番, 数量)。图框把值与标签拆成相邻行（位置文本被拉平），
+    故在「DRAWING NO.」「QTY」标签的相邻行里就近取值。取不到返回 (None, None)。"""
+    lines = [ln.strip() for ln in norm(text).splitlines()]
+    up = [ln.upper() for ln in lines]
+    code = None
+    for i, u in enumerate(up):
+        if any(k in u for k in _DRAWNO_KEYS):
+            for j in (i - 1, i + 1, i - 2, i + 2):
+                if 0 <= j < len(lines):
+                    m = TITLE_CODE_RE.search(lines[j])
+                    if m:
+                        code = m.group(1)
+                        break
+            if code:
+                break
+    qty = None
+    for i, u in enumerate(up):
+        if u in ('QTY', "Q'TY", 'Q’TY', '数量') or u.startswith('QTY'):
+            for j in (i + 1, i - 1):
+                if 0 <= j < len(lines) and re.fullmatch(r'\d{1,4}', lines[j]):
+                    qty = int(lines[j])
+                    break
+            if qty is not None:
+                break
+    return code, qty
+
+
+def _propagate_same_code_dims(products):
+    """同一品番跨页（如 CIY_B-02 图纸 1/2、2/2）：某页缺 text_dims，借同品番另一页已量到的。"""
+    by_code = {}
+    for r in products:
+        c = r.get('row_code')
+        if c:
+            by_code.setdefault(c, []).append(r)
+    for recs in by_code.values():
+        donor = next((r for r in recs
+                      if any((r.get('text_dims') or {}).get(k) for k in 'WDH')), None)
+        if not donor:
+            continue
+        for r in recs:
+            if not any((r.get('text_dims') or {}).get(k) for k in 'WDH'):
+                r['text_dims'] = dict(donor['text_dims'])
+
+
 def guess_names_mats(text):
     text = norm(text)
     name = ''
@@ -175,8 +226,15 @@ def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=
         page = doc[pi]
         text = page.get_text()
         codes = find_codes(text)
+        tb_code, tb_qty = parse_title_block(text)   # 图框标题栏：品番/数量（SEKI 等放图框）
+        if not codes and tb_code:                    # 正文无品番 → 用图框品番（不再是空占位）
+            codes = [tb_code]
         tdims = find_text_dims(text)
         qhints = find_qty_hints(text, codes)
+        if tb_qty is not None:                        # 图框数量兜底：给还没数量候选的品番
+            for c in codes:
+                if c:
+                    qhints.setdefault(c, tb_qty)
         name = guess_names_mats(text)
 
         img = os.path.join(img_dir, f'full_page_{pageno:02d}.png')
@@ -217,6 +275,7 @@ def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=
                 rec['text_dims_note'] = TEXT_DIMS_NOTE
             products.append(rec)
 
+    _propagate_same_code_dims(products)   # 同品番跨页补 text_dims（图纸 1/2、2/2）
     payload = {'project': project, 'products': products, 'raster_pages': raster_pages}
     with open(out_json, 'w', encoding='utf-8') as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)

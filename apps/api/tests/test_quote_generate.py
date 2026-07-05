@@ -463,6 +463,63 @@ def test_spec_notes_and_completeness_report():
     assert "本地提取" not in txt or True  # 说明文件可含过程信息（这里无）
 
 
+def test_fill_dims_from_ai_keeps_local_code_qty_fills_missing_dims():
+    """智能补全：本地缺尺寸的维用 AI 值补上，但品番/数量/材质保持本地（图框可靠）不动。"""
+    local = dims.PageDecision(products=[dims._clean_product(
+        {"row_code": "CIY_B-01", "qty": 10, "W": None, "D": None, "H": None,
+         "mat_jp": ["メラミン化粧板"], "dim_source": "PENDING"})], cost_usd=0.0)
+    ai = dims.PageDecision(products=[dims._clean_product(
+        {"row_code": "CIY_B-01", "qty": 999, "W": 1740, "D": 600, "H": 2000,
+         "dim_source": "visual", "dim_evidence": "外形線"})], cost_usd=0.05,
+        input_tokens=1000, output_tokens=200, model="claude-sonnet-5")
+    out = generate._fill_dims_from_ai(local, ai)
+    p = out.products[0]
+    assert (p["W"], p["D"], p["H"]) == (1740, 600, 2000), "缺失的尺寸由 AI 补上"
+    assert p["qty"] == 10, "数量保持本地图框值，不被 AI 覆盖"
+    assert p["mat_jp"] == ["メラミン化粧板"], "材质保持本地"
+    assert p["dim_source"] == "visual" and p["confirm_dims"] == []
+    assert out.cost_usd == 0.05 and out.input_tokens == 1000
+
+
+def test_decision_missing_dims_detects_gap():
+    full = dims.PageDecision(products=[{"W": 1, "D": 2, "H": 3}], cost_usd=0.0)
+    gap = dims.PageDecision(products=[{"W": 1, "D": None, "H": 3}], cost_usd=0.0)
+    assert generate._decision_missing_dims(full) is False
+    assert generate._decision_missing_dims(gap) is True
+
+
+def test_handler_auto_escalates_vector_missing_dims_to_ai(storage_supabase, monkeypatch):
+    """智能模式：矢量页本地缺尺寸 → 升级 AI 看图补尺寸，path 记 local+ai、计入 vision_calls。"""
+    class _FakeClaude:
+        @classmethod
+        def from_env(cls, model_override=None):
+            return cls()
+
+    # 本地决策缺尺寸（W/D/H 全 None）
+    monkeypatch.setattr(dims, "decide_page_local",
+                        lambda recs, txt, maps: dims.PageDecision(
+                            products=[dims._clean_product(
+                                {"row_code": r["row_code"] or "F01", "qty": 5,
+                                 "dim_source": "PENDING"}) for r in recs], cost_usd=0.0))
+    called = {"ai": 0}
+
+    def fake_ai(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
+        called["ai"] += 1
+        return dims.PageDecision(products=[_vis(r["row_code"] or "F01") for r in records],
+                                 cost_usd=0.03, input_tokens=500, model="claude-sonnet-5")
+
+    monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
+    monkeypatch.setattr(dims, "decide_page", fake_ai)
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
+    assert called["ai"] >= 1, "本地缺尺寸的矢量页应升级 AI"
+    assert result["summary"]["vision_calls"] >= 1
+    # 补全后尺寸有值、数量保持本地 5
+    prod = result["summary"]["products"][0]
+    assert prod["W"] == 1200 and prod["qty"] == 5
+
+
 def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):
     def _no(*a, **k):
         raise AssertionError("local 模式不该调用任何 AI")

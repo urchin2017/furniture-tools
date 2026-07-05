@@ -231,11 +231,9 @@ def build(pdf, template, json_path, out_xlsx, project_arg,
             ws[f'{_c}{r}'].fill = WHITE_FILL
 
         # 不确定判定（只影响“单格淡黄 + 备注极简标记”，不再整行/品番高亮、不再加 ⚠ 前缀）：
-        #   尺寸不确定 = 该维在 confirm_dims 里，或 W/D/H 缺失；
-        #   数量不确定 = qty 缺失。
-        _confirm = set(p.get('confirm_dims') or [])
-        dim_uncertain = {ax for ax, v in (('W', w), ('D', d), ('H', h))
-                         if ax in _confirm or v in (None, '', 0)}
+        #   **只有真正缺失（未填写）的维/数量才标**——已填写的尺寸一律不高亮、不写“尺寸不确定”，
+        #   即便它来自文字/图框推定（那类“已填但需复核”的信息只进说明文件，不进 Excel）。
+        dim_uncertain = {ax for ax, v in (('W', w), ('D', d), ('H', h)) if v in (None, '', 0)}
         qty_uncertain = qty in (None, '', 0)
         # 备注只写极简不确定标记，其余（AI 提取/流程说明/材质缘由）一律进说明文件、不进 Excel。
         _remark = []

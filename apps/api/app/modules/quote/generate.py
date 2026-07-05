@@ -113,6 +113,49 @@ def _mark_duplicate_codes(products: list[dict[str, Any]]) -> None:
             p["note_cn"] = ((p.get("note_cn") or "") + f"\n品番{code}重复使用·待确认").strip()
 
 
+def _decision_missing_dims(decision) -> bool:
+    """本页决策里是否还有产品缺 W/D/H（用于判断要不要升级 AI 看图补尺寸）。"""
+    return any(p.get(k) in (None, "", 0) for p in decision.products for k in ("W", "D", "H"))
+
+
+def _fill_dims_from_ai(local_dec, ai_dec):
+    """把 AI 看图读到的尺寸补进本地决策：**本地的品番/数量/材质/名称保持不动**，
+    只填本地缺失（None）的 W/D/H；成本/tokens 记 AI 那次。用于智能模式的“本地补不齐→AI 补尺寸”。"""
+    by_code = {p["row_code"]: p for p in ai_dec.products}
+    only_ai = ai_dec.products[0] if len(ai_dec.products) == 1 else None
+    for lp in local_dec.products:
+        ap = by_code.get(lp["row_code"]) or only_ai
+        if not ap:
+            continue
+        filled = False
+        for k in ("W", "D", "H"):
+            if lp.get(k) in (None, "", 0) and ap.get(k) not in (None, "", 0):
+                lp[k] = ap[k]
+                filled = True
+        if filled:
+            lp["dim_source"] = "visual"
+            if ap.get("dim_evidence"):
+                lp["dim_evidence"] = ap["dim_evidence"]
+        # 本地缺的品名/材质也顺手用 AI 看图结果补（SEKI 品名不在文字层，只能看图得）。
+        for k in ("name_jp", "name_cn"):
+            if not str(lp.get(k) or "").strip() and str(ap.get(k) or "").strip():
+                lp[k] = ap[k]
+        for k in ("mat_jp", "mat_cn"):
+            if not (lp.get(k) or []) and (ap.get(k) or []):
+                lp[k] = ap[k]
+        # confirm_dims：仍缺的维保留待确认标记（说明文件用）
+        lp["confirm_dims"] = [k for k in ("W", "D", "H") if lp.get(k) in (None, "", 0)]
+    return dims.PageDecision(
+        products=local_dec.products,
+        cost_usd=ai_dec.cost_usd,
+        warnings=local_dec.warnings + ai_dec.warnings,
+        input_tokens=ai_dec.input_tokens, output_tokens=ai_dec.output_tokens,
+        cache_read_input_tokens=ai_dec.cache_read_input_tokens,
+        cache_creation_input_tokens=ai_dec.cache_creation_input_tokens,
+        model=ai_dec.model,
+    )
+
+
 def _missing_fields(p: dict[str, Any]) -> list[str]:
     """一条记录缺哪些必填字段（材质/品名/尺寸/数量）。"""
     miss = []
@@ -237,11 +280,22 @@ def run(ctx) -> dict[str, Any]:
                             claude, pageno=pageno, records=recs, page_text=page_text,
                             images_png=images, image_legend=legend, glossary_lines=gl_lines,
                         )
-                    else:  # local：矢量页本地零 AI（几何量取 W/H + 术语表）
+                    else:  # local：矢量页本地零 AI（几何量取 W/H + 图框品番/数量/尺寸）
                         decision = dims.decide_page_local(recs, page_text, maps)
+                        # 智能模式补全：本地补不齐尺寸的页 → 升级 AI 看图读尺寸线，
+                        # 但**保留本地的品番/数量/材质（来自图框，可靠）**，只补 AI 读到的尺寸。
+                        # （纯本地模式 claude=None，绝不升级，零成本；全AI模式本就走 vision。）
+                        if claude is not None and vmode == "auto" and _decision_missing_dims(decision):
+                            images, legend = dims.render_vision_images(d, pageno, vision_dir)
+                            ai = dims.decide_page(
+                                claude, pageno=pageno, records=recs, page_text=page_text,
+                                images_png=images, image_legend=legend, glossary_lines=gl_lines,
+                            )
+                            decision = _fill_dims_from_ai(decision, ai)
+                            path = "local+ai"
                 except Exception as exc:  # noqa: BLE001
                     # 单页处理失败不拖垮整单：该页返回空决策，走⚠兜底（保留骨架、标 PENDING）。
-                    _lbl = {"vision": "看图", "local": "本地"}[path]
+                    _lbl = {"vision": "看图", "local": "本地", "local+ai": "本地+看图"}.get(path, "处理")
                     decision = dims.PageDecision(
                         products=[], cost_usd=0.0,
                         warnings=[f"第 {pageno} 页{_lbl}处理失败，已跳过、保留骨架待人工核对：{exc}"],
@@ -265,7 +319,7 @@ def run(ctx) -> dict[str, Any]:
             for fut in as_completed(futs):
                 pageno, recs, decision, path, kind = fut.result()
                 decisions[pageno] = (recs, decision)
-                if path == "vision":
+                if path in ("vision", "local+ai"):  # local+ai = 本地补不齐、升级看图补尺寸
                     n_vision += 1
                 else:
                     n_local += 1

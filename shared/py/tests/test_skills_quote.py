@@ -85,6 +85,38 @@ def test_build_scaffold_skip_pages_and_placeholder(drawing_pdf, tmp_path):
     assert payload["products"][0]["page"] == 1
 
 
+def test_parse_title_block_reads_drawing_no_and_qty():
+    """图框标题栏：品番在「DRAWING NO.」栏、数量在「QTY」栏（SEKI 式，正文无款号）。"""
+    from skills.drawing_to_quotation.extract_scaffold import parse_title_block
+
+    # 值与标签被拉平成相邻行（值在标签前）
+    text = "QTY\n96\nTITLE\nFINISHING LIST\nCIY_B-03\nDRAWING NO.\n2026/04/22\nDATE\n"
+    code, qty = parse_title_block(text)
+    assert code == "CIY_B-03" and qty == 96
+    # 其它品番形态
+    assert parse_title_block("TV-01\nDRAWING NO.\n")[0] == "TV-01"
+    assert parse_title_block("HB-02\nDRAWING NO.\n")[0] == "HB-02"
+    # 无标题栏 → (None, None)
+    assert parse_title_block("just some text") == (None, None)
+
+
+def test_build_scaffold_uses_title_block_when_no_inbody_code(tmp_path):
+    """正文无款号、品番只在图框 → 骨架用图框品番 + 数量（不再是空占位）。"""
+    doc = fitz.open()
+    doc.new_page(width=842, height=595)  # 封面
+    p = doc.new_page(width=842, height=595)
+    p.draw_rect(fitz.Rect(100, 100, 500, 300))
+    p.insert_text((520, 400),
+                  "QTY\n4\nCIY_B-02\nDRAWING NO.\nW2215 D1275 H2265\n面材：メラミン化粧板",
+                  fontsize=7, fontname="china-s")
+    pdf = tmp_path / "seki.pdf"
+    doc.save(pdf)
+    payload = build_scaffold(str(pdf), str(tmp_path / "p.json"), skip_pages=[1])
+    rec = payload["products"][0]
+    assert rec["row_code"] == "CIY_B-02", "图框品番应进骨架"
+    assert rec["qty_hint"] == 4, "图框数量应进 qty_hint"
+
+
 # ---------- 集成：scaffold → fill_quote 闭环 ----------
 
 def _confirm_all(products):

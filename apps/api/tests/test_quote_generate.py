@@ -499,6 +499,22 @@ def test_finalize_makes_materials_bilingual():
     assert any("メラミン化粧板" in m or "フォーミカ" in m for m in q["mat_jp"]), "防火板/富美家→日文"
 
 
+def test_apply_known_dims_fills_and_corrects_from_reference():
+    """既往报价权威尺寸：填空的深度、纠正几何量错的维；多变体按 W 就近匹配。"""
+    products = [
+        {"row_code": "CIY_L-01", "W": 4000, "D": None, "H": 2700, "confirm_dims": ["D"]},  # 几何 H 错、缺 D
+        {"row_code": "CIY_B-04", "W": 3600, "D": 180, "H": 1020, "confirm_dims": []},        # 变体2
+        {"row_code": "CIY_B-04", "W": 2000, "D": 180, "H": 1020, "confirm_dims": []},        # 变体1（就近 1900）
+        {"row_code": "NOPE-01", "W": 1, "D": 2, "H": 3, "confirm_dims": []},                 # 不在表 → 不动
+    ]
+    generate._apply_known_dims(products)
+    assert (products[0]["W"], products[0]["D"], products[0]["H"]) == (4000, 1140, 820)
+    assert products[0]["confirm_dims"] == []
+    assert products[1]["W"] == 3600  # 就近匹配 3600 变体
+    assert products[2]["W"] == 1900  # 就近匹配 1900 变体
+    assert (products[3]["W"], products[3]["D"], products[3]["H"]) == (1, 2, 3), "不在表的品番不动"
+
+
 def test_propagate_family_depth_borrows_within_product_family():
     """同产品族借深度：デスク族借 500、バンクベッド族借 1275；独一无二的产品保持空（不臆造）。"""
     products = [

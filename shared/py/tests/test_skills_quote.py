@@ -100,6 +100,28 @@ def test_parse_title_block_reads_drawing_no_and_qty():
     assert parse_title_block("just some text") == (None, None)
 
 
+def test_dedupe_multisheet_collapses_continuation_keeps_variants():
+    """多页去重：同品番 1/2·2/2 合成一行（去重复计数）；两个各自 1/1 的同码变体都保留；
+    无首页的孤立续页保留。"""
+    from skills.drawing_to_quotation.extract_scaffold import _dedupe_multisheet, parse_sheet_no
+
+    assert parse_sheet_no("SHEET NO.\n1/2\n") == (1, 2)
+    assert parse_sheet_no("没有张数") is None
+    prods = [
+        {"row_code": "CIY_B-02", "page": 3, "text_dims": {"W": 2215, "D": 1275, "H": 2265}, "_sheet": (1, 2)},
+        {"row_code": "CIY_B-02", "page": 4, "text_dims": {"W": None, "D": None, "H": None}, "_sheet": (2, 2)},
+        {"row_code": "CIY_B-04", "page": 6, "text_dims": {"W": 2000, "D": 180, "H": 1020}, "_sheet": (1, 1)},
+        {"row_code": "CIY_B-04", "page": 7, "text_dims": {"W": 3600, "D": 180, "H": 1020}, "_sheet": (1, 1)},
+        {"row_code": "CIY_B-01", "page": 2, "text_dims": {"W": None, "D": None, "H": None}, "_sheet": (2, 2)},
+    ]
+    out = _dedupe_multisheet(prods)
+    pages = [(p["row_code"], p["page"]) for p in out]
+    assert ("CIY_B-02", 3) in pages and ("CIY_B-02", 4) not in pages, "续页 2/2 应并入首页"
+    assert ("CIY_B-04", 6) in pages and ("CIY_B-04", 7) in pages, "各自 1/1 的同码变体都保留"
+    assert ("CIY_B-01", 2) in pages, "孤立续页（无首页）保留"
+    assert len(out) == 4
+
+
 def test_build_scaffold_uses_title_block_when_no_inbody_code(tmp_path):
     """正文无款号、品番只在图框 → 骨架用图框品番 + 数量（不再是空占位）。"""
     doc = fitz.open()

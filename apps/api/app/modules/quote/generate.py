@@ -113,9 +113,17 @@ def _mark_duplicate_codes(products: list[dict[str, Any]]) -> None:
             p["note_cn"] = ((p.get("note_cn") or "") + f"\n品番{code}重复使用·待确认").strip()
 
 
-def _decision_missing_dims(decision) -> bool:
-    """本页决策里是否还有产品缺 W/D/H（用于判断要不要升级 AI 看图补尺寸）。"""
-    return any(p.get(k) in (None, "", 0) for p in decision.products for k in ("W", "D", "H"))
+def _decision_incomplete(decision) -> bool:
+    """本页决策里是否还有产品缺**任一必填项**（尺寸/品名/材质）——用于判断要不要升级 AI 看图补全。
+    品名/材质在文字层取不到的图纸（如 SEKI 品名只在图上）也会触发，保证“无空白”。"""
+    for p in decision.products:
+        if any(p.get(k) in (None, "", 0) for k in ("W", "D", "H")):
+            return True
+        if not str(p.get("name_jp") or p.get("name_cn") or "").strip():
+            return True
+        if not (p.get("mat_jp") or p.get("mat_cn")):
+            return True
+    return False
 
 
 def _fill_dims_from_ai(local_dec, ai_dec):
@@ -282,10 +290,10 @@ def run(ctx) -> dict[str, Any]:
                         )
                     else:  # local：矢量页本地零 AI（几何量取 W/H + 图框品番/数量/尺寸）
                         decision = dims.decide_page_local(recs, page_text, maps)
-                        # 智能模式补全：本地补不齐尺寸的页 → 升级 AI 看图读尺寸线，
-                        # 但**保留本地的品番/数量/材质（来自图框，可靠）**，只补 AI 读到的尺寸。
+                        # 智能模式补全：本地补不齐任一必填项（尺寸/品名/材质）的页 → 升级 AI 看图，
+                        # 但**保留本地的品番/数量/材质（来自图框，可靠）**，只补 AI 读到的缺项。
                         # （纯本地模式 claude=None，绝不升级，零成本；全AI模式本就走 vision。）
-                        if claude is not None and vmode == "auto" and _decision_missing_dims(decision):
+                        if claude is not None and vmode == "auto" and _decision_incomplete(decision):
                             images, legend = dims.render_vision_images(d, pageno, vision_dir)
                             ai = dims.decide_page(
                                 claude, pageno=pageno, records=recs, page_text=page_text,

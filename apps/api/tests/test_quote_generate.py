@@ -413,22 +413,27 @@ def test_analyze_matches_generate_classification(storage_supabase, monkeypatch):
     assert a["summary"]["bitmap_pages"] == result["summary"]["bitmap_pages"]
 
 
-def test_extract_materials_catches_real_drawing_patterns():
-    """材质提取：真实图纸写「面材：X」「脚：X」或直接写材质名，都要抓到（旧版只认「材質：」全漏）。"""
+def test_extract_materials_chinese_japanese_and_excludes_supply_notes():
+    """材质提取：中日双语材质都抓（含部位前缀整行）；纯供给/安装说明（客供/现场安装）不当材质。"""
     text = (
-        "フレーム：32角パイプ（黒塗装）\n"
-        "面材：メラミン化粧板（リアテック同柄）\n"
-        "脚：白橡木实木\n"
-        "面材同色樹脂テープ（木目）\n"
-        "ITEM No. CIY_B-01\n"       # 非材质行，不该收
+        "正面：防火板（富美家）\n"       # 中文材质（创明）
+        "背面：平衡板（黑or白）\n"
+        "小口：PVC\n"
+        "脚：客供 现场安装\n"           # 供给/安装说明——不是材质，必须排除
+        "调整脚：普通透明的\n"          # 无材质名词——排除
+        "面材：メラミン化粧板（リアテック同柄）\n"  # 日文材质（SEKI）
+        "ITEM No. CIY_B-01\n"          # 非材质行
         "W2215 D1275 H2265\n"
     )
     mats = dims._extract_materials(text)
-    assert "32角パイプ（黒塗装）" in mats          # フレーム：后
-    assert "メラミン化粧板（リアテック同柄）" in mats  # 面材：后
-    assert "白橡木实木" in mats                     # 脚：后
-    assert any("樹脂テープ" in m for m in mats)     # 裸材质名整行
-    assert not any("CIY_B-01" in m for m in mats), "非材质行不该混入"
+    assert any("防火板" in m for m in mats)
+    assert any("平衡板" in m for m in mats)
+    assert any("PVC" in m for m in mats)
+    assert any("メラミン化粧板" in m for m in mats)
+    assert not any("客供" in m for m in mats), "供给/安装说明不该当材质"
+    assert not any("现场安装" in m for m in mats)
+    assert not any("普通透明" in m for m in mats), "无材质名词的行不该收"
+    assert not any("CIY_B-01" in m for m in mats)
 
 
 def test_decide_page_local_fills_materials_without_prefix():
@@ -481,11 +486,19 @@ def test_fill_dims_from_ai_keeps_local_code_qty_fills_missing_dims():
     assert out.cost_usd == 0.05 and out.input_tokens == 1000
 
 
-def test_decision_missing_dims_detects_gap():
-    full = dims.PageDecision(products=[{"W": 1, "D": 2, "H": 3}], cost_usd=0.0)
-    gap = dims.PageDecision(products=[{"W": 1, "D": None, "H": 3}], cost_usd=0.0)
-    assert generate._decision_missing_dims(full) is False
-    assert generate._decision_missing_dims(gap) is True
+def test_decision_incomplete_detects_any_missing_field():
+    full = dims.PageDecision(products=[
+        {"W": 1, "D": 2, "H": 3, "name_jp": "机", "mat_jp": ["防火板"]}], cost_usd=0.0)
+    no_dim = dims.PageDecision(products=[
+        {"W": 1, "D": None, "H": 3, "name_jp": "机", "mat_jp": ["防火板"]}], cost_usd=0.0)
+    no_name = dims.PageDecision(products=[
+        {"W": 1, "D": 2, "H": 3, "name_jp": "", "mat_jp": ["防火板"]}], cost_usd=0.0)
+    no_mat = dims.PageDecision(products=[
+        {"W": 1, "D": 2, "H": 3, "name_jp": "机", "mat_jp": []}], cost_usd=0.0)
+    assert generate._decision_incomplete(full) is False
+    assert generate._decision_incomplete(no_dim) is True
+    assert generate._decision_incomplete(no_name) is True   # 品名缺 → 升级（SEKI 品名不在文字层）
+    assert generate._decision_incomplete(no_mat) is True
 
 
 def test_handler_auto_escalates_vector_missing_dims_to_ai(storage_supabase, monkeypatch):

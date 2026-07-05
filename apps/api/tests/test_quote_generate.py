@@ -468,69 +468,53 @@ def test_spec_notes_and_completeness_report():
     assert "本地提取" not in txt or True  # 说明文件可含过程信息（这里无）
 
 
-def test_fill_dims_from_ai_keeps_local_code_qty_fills_missing_dims():
-    """智能补全：本地缺尺寸的维用 AI 值补上，但品番/数量/材质保持本地（图框可靠）不动。"""
-    local = dims.PageDecision(products=[dims._clean_product(
-        {"row_code": "CIY_B-01", "qty": 10, "W": None, "D": None, "H": None,
-         "mat_jp": ["メラミン化粧板"], "dim_source": "PENDING"})], cost_usd=0.0)
-    ai = dims.PageDecision(products=[dims._clean_product(
-        {"row_code": "CIY_B-01", "qty": 999, "W": 1740, "D": 600, "H": 2000,
-         "dim_source": "visual", "dim_evidence": "外形線"})], cost_usd=0.05,
-        input_tokens=1000, output_tokens=200, model="claude-sonnet-5")
-    out = generate._fill_dims_from_ai(local, ai)
-    p = out.products[0]
-    assert (p["W"], p["D"], p["H"]) == (1740, 600, 2000), "缺失的尺寸由 AI 补上"
-    assert p["qty"] == 10, "数量保持本地图框值，不被 AI 覆盖"
-    assert p["mat_jp"] == ["メラミン化粧板"], "材质保持本地"
-    assert p["dim_source"] == "visual" and p["confirm_dims"] == []
-    assert out.cost_usd == 0.05 and out.input_tokens == 1000
+def test_finalize_fills_name_from_code_and_variant_width():
+    """品名本地查表补：缺品名的行按品番补；同品番多行（变体）按 W 加「-W宽」区分。"""
+    products = [
+        {"row_code": "CIY_TV-01", "W": 800, "name_jp": "", "name_cn": "", "mat_jp": [], "mat_cn": []},
+        {"row_code": "CIY_M-01", "W": 653, "name_jp": "", "name_cn": "", "mat_jp": [], "mat_cn": []},
+        {"row_code": "CIY_M-01", "W": 600, "name_jp": "", "name_cn": "", "mat_jp": [], "mat_cn": []},
+        {"row_code": "F01", "W": 1200, "name_jp": "餐桌", "name_cn": "餐桌", "mat_jp": [], "mat_cn": []},
+    ]
+    generate._finalize_names_materials(products)
+    assert products[0]["name_jp"] == "TVボード" and products[0]["name_cn"] == "电视板"
+    # 变体：CIY_M-01 两行按 W 区分
+    assert products[1]["name_jp"] == "ミラー-W653" and products[2]["name_jp"] == "ミラー-W600"
+    assert products[3]["name_jp"] == "餐桌", "已有品名不覆盖"
 
 
-def test_decision_incomplete_detects_any_missing_field():
-    full = dims.PageDecision(products=[
-        {"W": 1, "D": 2, "H": 3, "name_jp": "机", "mat_jp": ["防火板"]}], cost_usd=0.0)
-    no_dim = dims.PageDecision(products=[
-        {"W": 1, "D": None, "H": 3, "name_jp": "机", "mat_jp": ["防火板"]}], cost_usd=0.0)
-    no_name = dims.PageDecision(products=[
-        {"W": 1, "D": 2, "H": 3, "name_jp": "", "mat_jp": ["防火板"]}], cost_usd=0.0)
-    no_mat = dims.PageDecision(products=[
-        {"W": 1, "D": 2, "H": 3, "name_jp": "机", "mat_jp": []}], cost_usd=0.0)
-    assert generate._decision_incomplete(full) is False
-    assert generate._decision_incomplete(no_dim) is True
-    assert generate._decision_incomplete(no_name) is True   # 品名缺 → 升级（SEKI 品名不在文字层）
-    assert generate._decision_incomplete(no_mat) is True
+def test_finalize_makes_materials_bilingual():
+    """材质单侧为空→补成中日双语：日文行补中文、中文行补日文。"""
+    # 只有日文（SEKI）
+    jp_only = [{"row_code": "X", "mat_jp": ["面材：メラミン化粧板"], "mat_cn": []}]
+    generate._finalize_names_materials(jp_only)
+    p = jp_only[0]
+    assert p["mat_jp"] and p["mat_cn"], "两列都应有内容"
+    assert any("防火板" in m for m in p["mat_cn"]), "メラミン化粧板→防火板"
+    # 只有中文（创明）
+    cn_only = [{"row_code": "Y", "mat_jp": [], "mat_cn": ["正面：防火板（富美家）"]}]
+    generate._finalize_names_materials(cn_only)
+    q = cn_only[0]
+    assert q["mat_jp"] and q["mat_cn"]
+    assert any("メラミン化粧板" in m or "フォーミカ" in m for m in q["mat_jp"]), "防火板/富美家→日文"
 
 
-def test_handler_auto_escalates_vector_missing_dims_to_ai(storage_supabase, monkeypatch):
-    """智能模式：矢量页本地缺尺寸 → 升级 AI 看图补尺寸，path 记 local+ai、计入 vision_calls。"""
-    class _FakeClaude:
+def test_handler_auto_never_calls_ai_on_vector(storage_supabase, monkeypatch):
+    """矢量图纸在智能模式下**坚决不调 AI**（成本 0），品名靠本地查表、材质靠术语表补。"""
+    class _NoAIClaude:
         @classmethod
         def from_env(cls, model_override=None):
             return cls()
 
-    # 本地决策缺尺寸（W/D/H 全 None）
-    monkeypatch.setattr(dims, "decide_page_local",
-                        lambda recs, txt, maps: dims.PageDecision(
-                            products=[dims._clean_product(
-                                {"row_code": r["row_code"] or "F01", "qty": 5,
-                                 "dim_source": "PENDING"}) for r in recs], cost_usd=0.0))
-    called = {"ai": 0}
+    def boom(*a, **k):
+        raise AssertionError("矢量页不得调用 AI 看图")
 
-    def fake_ai(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
-        called["ai"] += 1
-        return dims.PageDecision(products=[_vis(r["row_code"] or "F01") for r in records],
-                                 cost_usd=0.03, input_tokens=500, model="claude-sonnet-5")
-
-    monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
-    monkeypatch.setattr(dims, "decide_page", fake_ai)
+    monkeypatch.setattr(generate, "ClaudeClient", _NoAIClaude)
+    monkeypatch.setattr(dims, "decide_page", boom)   # 视觉路被调用即失败
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
 
     result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
-    assert called["ai"] >= 1, "本地缺尺寸的矢量页应升级 AI"
-    assert result["summary"]["vision_calls"] >= 1
-    # 补全后尺寸有值、数量保持本地 5
-    prod = result["summary"]["products"][0]
-    assert prod["W"] == 1200 and prod["qty"] == 5
+    assert result["summary"]["vision_calls"] == 0 and result["summary"]["cost_usd"] == 0.0
 
 
 def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):

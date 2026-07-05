@@ -113,55 +113,59 @@ def _mark_duplicate_codes(products: list[dict[str, Any]]) -> None:
             p["note_cn"] = ((p.get("note_cn") or "") + f"\n品番{code}重复使用·待确认").strip()
 
 
-def _decision_incomplete(decision) -> bool:
-    """本页决策里是否还有产品缺**任一必填项**（尺寸/品名/材质）——用于判断要不要升级 AI 看图补全。
-    品名/材质在文字层取不到的图纸（如 SEKI 品名只在图上）也会触发，保证“无空白”。"""
-    for p in decision.products:
-        if any(p.get(k) in (None, "", 0) for k in ("W", "D", "H")):
-            return True
-        if not str(p.get("name_jp") or p.get("name_cn") or "").strip():
-            return True
-        if not (p.get("mat_jp") or p.get("mat_cn")):
-            return True
-    return False
+_KANA_RE = re.compile(r"[぀-ヿ]")  # 平/片假名 → 判定日文行
 
 
-def _fill_dims_from_ai(local_dec, ai_dec):
-    """把 AI 看图读到的尺寸补进本地决策：**本地的品番/数量/材质/名称保持不动**，
-    只填本地缺失（None）的 W/D/H；成本/tokens 记 AI 那次。用于智能模式的“本地补不齐→AI 补尺寸”。"""
-    by_code = {p["row_code"]: p for p in ai_dec.products}
-    only_ai = ai_dec.products[0] if len(ai_dec.products) == 1 else None
-    for lp in local_dec.products:
-        ap = by_code.get(lp["row_code"]) or only_ai
-        if not ap:
-            continue
-        filled = False
-        for k in ("W", "D", "H"):
-            if lp.get(k) in (None, "", 0) and ap.get(k) not in (None, "", 0):
-                lp[k] = ap[k]
-                filled = True
-        if filled:
-            lp["dim_source"] = "visual"
-            if ap.get("dim_evidence"):
-                lp["dim_evidence"] = ap["dim_evidence"]
-        # 本地缺的品名/材质也顺手用 AI 看图结果补（SEKI 品名不在文字层，只能看图得）。
-        for k in ("name_jp", "name_cn"):
-            if not str(lp.get(k) or "").strip() and str(ap.get(k) or "").strip():
-                lp[k] = ap[k]
-        for k in ("mat_jp", "mat_cn"):
-            if not (lp.get(k) or []) and (ap.get(k) or []):
-                lp[k] = ap[k]
-        # confirm_dims：仍缺的维保留待确认标记（说明文件用）
-        lp["confirm_dims"] = [k for k in ("W", "D", "H") if lp.get(k) in (None, "", 0)]
-    return dims.PageDecision(
-        products=local_dec.products,
-        cost_usd=ai_dec.cost_usd,
-        warnings=local_dec.warnings + ai_dec.warnings,
-        input_tokens=ai_dec.input_tokens, output_tokens=ai_dec.output_tokens,
-        cache_read_input_tokens=ai_dec.cache_read_input_tokens,
-        cache_creation_input_tokens=ai_dec.cache_creation_input_tokens,
-        model=ai_dec.model,
-    )
+def _translate_terms(line: str, terms: dict[str, str]) -> str:
+    """按术语表逐词替换（长词优先）翻译一行；未命中的片段保留原文。"""
+    out = line or ""
+    for k in sorted(terms, key=len, reverse=True):
+        if k and k in out:
+            out = out.replace(k, terms[k])
+    return out
+
+
+def _bilingual_materials(jp_lines, cn_lines) -> tuple[list[str], list[str]]:
+    """把材质整理成日/中两列都齐：日文行→补中列译文，中文行→补日列译文。缺侧用内置术语表兜底。"""
+    from .product_names import TERMS, TERMS_ZH2JP
+
+    seen: list[str] = []
+    for x in list(jp_lines or []) + list(cn_lines or []):
+        x = str(x).strip()
+        if x and x not in seen:
+            seen.append(x)
+    jp: list[str] = []
+    cn: list[str] = []
+    for ln in seen:
+        if _KANA_RE.search(ln):          # 日文行
+            jp.append(ln)
+            cn.append(_translate_terms(ln, TERMS))
+        else:                             # 中文/英文/符号行
+            cn.append(ln)
+            jp.append(_translate_terms(ln, TERMS_ZH2JP))
+    return jp, cn
+
+
+def _finalize_names_materials(products: list[dict[str, Any]]) -> None:
+    """出行前本地补全（零 AI）：① 品名缺则按品番查表补，同品番变体按 W 加「-W宽」区分；
+    ② 材质一侧为空时用内置术语表补成中日双语。AI 已给出的品名/双语材质不覆盖。"""
+    from .product_names import PRODUCT_NAMES
+
+    counts = Counter(p.get("row_code") for p in products if p.get("row_code"))
+    for p in products:
+        code = p.get("row_code") or ""
+        if not str(p.get("name_jp") or "").strip() and not str(p.get("name_cn") or "").strip():
+            hit = PRODUCT_NAMES.get(code)
+            if hit:
+                jp, cn = hit
+                if counts[code] > 1 and p.get("W"):   # 同品番尺寸变体 → 附 -W{宽} 区分
+                    jp, cn = f"{jp}-W{p['W']}", f"{cn}-W{p['W']}"
+                p["name_jp"], p["name_cn"] = jp, cn
+        mj, mc = p.get("mat_jp") or [], p.get("mat_cn") or []
+        if mj and not mc:                 # 只有日文 → 补中文
+            p["mat_jp"], p["mat_cn"] = _bilingual_materials(mj, [])
+        elif mc and not mj:               # 只有中文 → 补日文
+            p["mat_jp"], p["mat_cn"] = _bilingual_materials([], mc)
 
 
 def _missing_fields(p: dict[str, Any]) -> list[str]:
@@ -288,22 +292,11 @@ def run(ctx) -> dict[str, Any]:
                             claude, pageno=pageno, records=recs, page_text=page_text,
                             images_png=images, image_legend=legend, glossary_lines=gl_lines,
                         )
-                    else:  # local：矢量页本地零 AI（几何量取 W/H + 图框品番/数量/尺寸）
+                    else:  # local：矢量页**纯本地、零 AI**（几何 + 图框品番/数量/尺寸/品名查表 + 术语表）
                         decision = dims.decide_page_local(recs, page_text, maps)
-                        # 智能模式补全：本地补不齐任一必填项（尺寸/品名/材质）的页 → 升级 AI 看图，
-                        # 但**保留本地的品番/数量/材质（来自图框，可靠）**，只补 AI 读到的缺项。
-                        # （纯本地模式 claude=None，绝不升级，零成本；全AI模式本就走 vision。）
-                        if claude is not None and vmode == "auto" and _decision_incomplete(decision):
-                            images, legend = dims.render_vision_images(d, pageno, vision_dir)
-                            ai = dims.decide_page(
-                                claude, pageno=pageno, records=recs, page_text=page_text,
-                                images_png=images, image_legend=legend, glossary_lines=gl_lines,
-                            )
-                            decision = _fill_dims_from_ai(decision, ai)
-                            path = "local+ai"
                 except Exception as exc:  # noqa: BLE001
                     # 单页处理失败不拖垮整单：该页返回空决策，走⚠兜底（保留骨架、标 PENDING）。
-                    _lbl = {"vision": "看图", "local": "本地", "local+ai": "本地+看图"}.get(path, "处理")
+                    _lbl = {"vision": "看图", "local": "本地"}.get(path, "处理")
                     decision = dims.PageDecision(
                         products=[], cost_usd=0.0,
                         warnings=[f"第 {pageno} 页{_lbl}处理失败，已跳过、保留骨架待人工核对：{exc}"],
@@ -327,7 +320,7 @@ def run(ctx) -> dict[str, Any]:
             for fut in as_completed(futs):
                 pageno, recs, decision, path, kind = fut.result()
                 decisions[pageno] = (recs, decision)
-                if path in ("vision", "local+ai"):  # local+ai = 本地补不齐、升级看图补尺寸
+                if path == "vision":
                     n_vision += 1
                 else:
                     n_local += 1
@@ -365,6 +358,7 @@ def run(ctx) -> dict[str, Any]:
             merged_all.extend(dims.merge_page_decision(recs, decision))
 
         products = merged_all
+        _finalize_names_materials(products)  # 本地补品名（品番查表）+ 材质中日双语（零 AI）
         _mark_duplicate_codes(products)
         payload["products"] = products
         with open(json_path, "w", encoding="utf-8") as f:

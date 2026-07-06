@@ -248,12 +248,18 @@ def render_page(page, out_png, dpi):
     page.get_pixmap(dpi=dpi).save(out_png)
 
 
-def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=''):
+def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project='',
+                   render_images=True):
     """核心入口（供后端 import；main() 是它的 CLI 皮）。
 
     把骨架写到 out_json 并返回 payload dict。payload 比原版多带一个
     'raster_pages'（1-based 页码列表）供上层强制走看图协议——fill_quote
     只读 'project'/'products'，多这个键无影响。
+
+    render_images=False：**不渲染整页图**（仍在记录里保留 page_image 路径字段）。
+    Web 生成管线里看图路会自己按视觉 DPI 重渲（dims.render_vision_images 写到独立目录），
+    这里的整页图从不被读取——关掉可省掉逐页一张 150dpi 大图的白渲，矢量/位图单都提速。
+    skill 的 CLI main() 仍用默认 True（它会读 page_image）。
     """
     img_dir = img_dir or os.path.join(os.path.dirname(os.path.abspath(out_json)) or '.', 'pages')
     os.makedirs(img_dir, exist_ok=True)
@@ -281,7 +287,8 @@ def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=
         name = guess_names_mats(text)
 
         img = os.path.join(img_dir, f'full_page_{pageno:02d}.png')
-        render_page(page, img, dpi)
+        if render_images:
+            render_page(page, img, dpi)
 
         try:
             measured = measure_page(page)

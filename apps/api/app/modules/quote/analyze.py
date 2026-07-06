@@ -11,9 +11,14 @@ from typing import Any
 import fitz
 
 from skills.drawing_to_quotation.extract_scaffold import detect_raster, find_codes
-from skills.drawing_to_quotation.measure_dims import measure_page
+from skills.drawing_to_quotation.measure_dims import vector_ok_probe
 
 from . import dims
+
+# 单页看图的粗略成本上限（美元）：仅用于生成前的「预计花费」提示与花钱确认闸，
+# 不是精确账单——真实成本按 token 在生成结果里逐页给出。默认按 Sonnet-5 一页整页+四象限
+# 图 + 思考/输出的经验上限估。宁可略高，避免低估让用户误花钱。
+EST_USD_PER_VISION_PAGE = 0.15
 
 
 def analyze_pdf(pdf_path: str, skip_pages, vision_mode: str = "auto") -> dict[str, Any]:
@@ -36,9 +41,10 @@ def analyze_pdf(pdf_path: str, skip_pages, vision_mode: str = "auto") -> dict[st
             text = page.get_text()
             codes = [c for c in find_codes(text) if c]
             try:
-                measured = measure_page(page)
-            except Exception:  # noqa: BLE001 — 量取异常按无矢量处理
-                measured = {"vector_ok": False}
+                vok = vector_ok_probe(page)  # 轻量探测：只判有没有可用矢量线，不量尺寸
+            except Exception:  # noqa: BLE001 — 探测异常按无矢量处理
+                vok = False
+            measured = {"vector_ok": vok}
             kind = "bitmap" if detect_raster(page, measured) else "vector"
             path = dims.route_for_kind(kind, vmode)
             pages.append({
@@ -51,12 +57,15 @@ def analyze_pdf(pdf_path: str, skip_pages, vision_mode: str = "auto") -> dict[st
     finally:
         doc.close()
 
+    ai_pages = [p["page"] for p in pages if p["path"] == "vision"]
     summary = {
         "total": len(pages),
         "vision_mode": vmode,
         "vector_pages": [p["page"] for p in pages if p["kind"] == "vector"],
         "bitmap_pages": [p["page"] for p in pages if p["kind"] == "bitmap"],
-        "ai_pages": [p["page"] for p in pages if p["path"] == "vision"],
+        "ai_pages": ai_pages,
         "local_pages": [p["page"] for p in pages if p["path"] == "local"],
+        # 生成前的粗略预计花费（美元），供前端花钱确认闸用；本地零 AI 时为 0。
+        "est_cost_usd": round(len(ai_pages) * EST_USD_PER_VISION_PAGE, 2),
     }
     return {"pages": pages, "summary": summary}

@@ -78,6 +78,17 @@ def test_build_scaffold_expands_codes_and_leaves_dims_null(drawing_pdf, tmp_path
     assert json.loads(out_json.read_text(encoding="utf-8"))["project"] == "测试项目"
 
 
+def test_build_scaffold_render_images_false_skips_render(drawing_pdf, tmp_path):
+    """render_images=False：不写整页图（Web 生成管线用），但 page_image 路径字段仍在、其余不变。"""
+    payload = build_scaffold(
+        drawing_pdf, str(tmp_path / "p.json"), skip_pages=[1], render_images=False
+    )
+    for p in payload["products"]:
+        assert p["page_image"], "page_image 路径字段应保留"
+        assert not Path(p["page_image"]).exists(), "关掉渲染后整页图不应被写出"
+        assert p["dim_source"] == "PENDING"
+
+
 def test_build_scaffold_skip_pages_and_placeholder(drawing_pdf, tmp_path):
     payload = build_scaffold(drawing_pdf, str(tmp_path / "p.json"), skip_pages=[2])
     # 只剩封面页：无品番 → 建空品番占位记录（无文本层页也要建行的铁律）

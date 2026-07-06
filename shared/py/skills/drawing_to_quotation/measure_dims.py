@@ -164,6 +164,16 @@ def pick_overall(lines, scale, tol=0.10):
             'labeled_ok':True,'all_labels_on_axis':sorted({L['label'] for L in kept}),
             'band_overalls':band_overalls(kept, scale)}
 
+def vector_ok_probe(page, clip=None):
+    """轻量矢量判定：只探「这页有没有可用矢量直线」，不量尺寸、不读文字层。
+
+    判据与 measure_page 的 vector_ok 提前返回条件**完全一致**（有线段且横/竖至少一向非空），
+    但省掉 numbers()（get_text words + 正则）、比例尺共识、pick_overall 等重活——
+    供「判断」预览快速分类位图/矢量用，分类结果与 measure_page 逐页一致。
+    """
+    segs=segments(page,clip); hor,ver=classify(segs)
+    return bool(segs) and (bool(hor) or bool(ver))
+
 def measure_page(page, clip=None):
     segs=segments(page,clip); hor,ver=classify(segs); nums=numbers(page,clip)
     if not segs or (not hor and not ver):

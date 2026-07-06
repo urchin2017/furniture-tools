@@ -328,9 +328,11 @@ def run(ctx) -> dict[str, Any]:
 
         # ① 骨架 + 光栅判定 + 整页图
         json_path = os.path.join(workdir, "products.json")
+        # render_images=False：骨架不渲整页图——看图路会自己按视觉 DPI 重渲（render_vision_images），
+        # 本地路根本不用图，这里的整页图从不被读取。省掉逐页一张 150dpi 大图，明显提速。
         payload = build_scaffold(
             pdf_local, json_path, img_dir=os.path.join(workdir, "pages"),
-            dpi=150, skip_pages=skip_pages, project=project,
+            dpi=150, skip_pages=skip_pages, project=project, render_images=False,
         )
         products: list[dict[str, Any]] = payload["products"]
         raster_pages: list[int] = payload.get("raster_pages", [])

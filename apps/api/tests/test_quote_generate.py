@@ -378,9 +378,12 @@ def test_analyze_pdf_bitmap_and_skipall_boundaries(tmp_path):
     out = analyze_pdf(str(pb), skip_pages=[], vision_mode="auto")
     assert out["pages"][0]["kind"] == "bitmap" and out["pages"][0]["path"] == "vision"
     assert out["summary"]["ai_pages"] == [1] and out["summary"]["bitmap_pages"] == [1]
-    # 位图页在纯本地模式仍计划 local（用户要零 AI），但 kind 仍是 bitmap
+    # 预计花费：1 页看图 → est_cost_usd > 0（供前端花钱确认闸用）
+    assert out["summary"]["est_cost_usd"] > 0
+    # 位图页在纯本地模式仍计划 local（用户要零 AI），但 kind 仍是 bitmap；零 AI → 预计花费 0
     out_l = analyze_pdf(str(pb), skip_pages=[], vision_mode="local")
     assert out_l["pages"][0]["kind"] == "bitmap" and out_l["pages"][0]["path"] == "local"
+    assert out_l["summary"]["est_cost_usd"] == 0
     # 跳过全部页 → 空计划（不抛）
     out0 = analyze_pdf(str(pb), skip_pages=[1], vision_mode="auto")
     assert out0["summary"]["total"] == 0 and out0["pages"] == []

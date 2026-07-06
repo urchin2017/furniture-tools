@@ -46,3 +46,18 @@ def test_extend_with_margins_not_added_when_overall_is_full_line():
     _vdim(pg, 120, 300, 190, 770)
     m = md.measure_page(pg)
     assert m["W"]["overall_value"] == 700, "内部小数不该被重复加成 720"
+
+
+def test_vector_ok_probe_matches_measure_page_on_vector_and_blank():
+    """轻量探测的 vector_ok 必须与 measure_page 的判定逐页一致（判断预览与生成分流同源）。"""
+    doc, pg = _page()
+    _hdim(pg, 220, 640, 300, 886)
+    _vdim(pg, 120, 300, 190, 700)
+    assert md.vector_ok_probe(pg) is True
+    assert md.measure_page(pg)["vector_ok"] is True
+
+    # 空白页（无任何矢量线）→ 两者都判 False
+    doc2 = fitz.open()
+    blank = doc2.new_page(width=800, height=600)
+    assert md.vector_ok_probe(blank) is False
+    assert md.measure_page(blank)["vector_ok"] is False

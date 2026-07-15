@@ -113,6 +113,195 @@ def _mark_duplicate_codes(products: list[dict[str, Any]]) -> None:
             p["note_cn"] = ((p.get("note_cn") or "") + f"\n品番{code}重复使用·待确认").strip()
 
 
+_KANA_RE = re.compile(r"[぀-ヿ]")  # 平/片假名 → 判定日文行
+
+
+def _translate_terms(line: str, terms: dict[str, str]) -> str:
+    """按术语表逐词替换（长词优先）翻译一行；未命中的片段保留原文。"""
+    out = line or ""
+    for k in sorted(terms, key=len, reverse=True):
+        if k and k in out:
+            out = out.replace(k, terms[k])
+    return out
+
+
+def _bilingual_materials(jp_lines, cn_lines) -> tuple[list[str], list[str]]:
+    """把材质整理成日/中两列都齐：日文行→补中列译文，中文行→补日列译文。缺侧用内置术语表兜底。"""
+    from .product_names import TERMS, TERMS_ZH2JP
+
+    seen: list[str] = []
+    for x in list(jp_lines or []) + list(cn_lines or []):
+        x = str(x).strip()
+        if x and x not in seen:
+            seen.append(x)
+    jp: list[str] = []
+    cn: list[str] = []
+    for ln in seen:
+        if _KANA_RE.search(ln):          # 日文行
+            jp.append(ln)
+            cn.append(_translate_terms(ln, TERMS))
+        else:                             # 中文/英文/符号行
+            cn.append(ln)
+            jp.append(_translate_terms(ln, TERMS_ZH2JP))
+    return jp, cn
+
+
+def _finalize_names_materials(products: list[dict[str, Any]]) -> None:
+    """出行前本地补全（零 AI）：① 品名缺则按品番查表补，同品番变体按 W 加「-W宽」区分；
+    ② 材质一侧为空时用内置术语表补成中日双语。AI 已给出的品名/双语材质不覆盖。"""
+    from .product_names import PRODUCT_NAMES
+
+    counts = Counter(p.get("row_code") for p in products if p.get("row_code"))
+    for p in products:
+        code = p.get("row_code") or ""
+        if not str(p.get("name_jp") or "").strip() and not str(p.get("name_cn") or "").strip():
+            hit = PRODUCT_NAMES.get(code)
+            if hit:
+                jp, cn = hit
+                if counts[code] > 1 and p.get("W"):   # 同品番尺寸变体 → 附 -W{宽} 区分
+                    jp, cn = f"{jp}-W{p['W']}", f"{cn}-W{p['W']}"
+                p["name_jp"], p["name_cn"] = jp, cn
+        mj, mc = p.get("mat_jp") or [], p.get("mat_cn") or []
+        if mj and not mc:                 # 只有日文 → 补中文
+            p["mat_jp"], p["mat_cn"] = _bilingual_materials(mj, [])
+        elif mc and not mj:               # 只有中文 → 补日文
+            p["mat_jp"], p["mat_cn"] = _bilingual_materials([], mc)
+
+
+_NAME_SUFFIX_RE = re.compile(r"[-‐](?:[ＡＢＣA-C]?タイプ|[A-C]型|W\d+).*$")
+
+
+def _fill_depth_from_drawing(products: list[dict[str, Any]], pdf_local: str, reader: str) -> int:
+    """兜底补深度 D：对仍缺 D 的行，从**图纸线条/文字坐标**确定性读深度（零 AI、不看图、不参考外部 Excel）。
+    `reader` 选读法：
+      'prefix'      = 只取显式「D 前缀」注记（最可靠，最先跑）；
+      'geom_strong' = 几何强档 T1–T3（信号明确，跑在同族借用之前，可盖过借用——书桌 400≠同族 500）；
+      'geometry'    = 几何弱档兜底 T4（跑在同族借用之后，同族更可信时已让位）。
+    读不出留空（标黄待人工），绝不臆造。返回补上的行数。"""
+    from . import vector_read
+
+    need = [p for p in products if p.get("D") in (None, "", 0) and isinstance(p.get("page"), int)]
+    if not need:
+        return 0
+    n = 0
+    d = fitz.open(pdf_local)
+    try:
+        for p in need:
+            try:
+                if reader == "prefix":
+                    dep = vector_read.read_depth_prefix(d[p["page"] - 1], w_mm=p.get("W"))
+                else:
+                    dep = vector_read.read_depth_geometry(
+                        d[p["page"] - 1], w_mm=p.get("W"), h_mm=p.get("H"),
+                        strong_only=(reader == "geom_strong"))
+            except Exception:  # noqa: BLE001
+                dep = None
+            if dep:
+                p["D"] = int(dep)
+                cd = set(p.get("confirm_dims") or [])
+                cd.add("D")   # 确定性读取仍标复核（图纸密集尺寸链，宁核一眼）
+                p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
+                n += 1
+    finally:
+        d.close()
+    return n
+
+
+def _apply_width_diff_notes(products: list[dict[str, Any]], pdf_local: str) -> int:
+    """按图上「尺寸差」注记（如「CIY_B-03のサイズ違い（W-100）」）修正整体宽 W：W2000 → 1900。
+    图纸自带、机器可读的修正，据此改正仍是「依据图纸」（标题里的手改 W1900 是图片、取不到）。返回修正行数。"""
+    from . import vector_read
+
+    have = [p for p in products if isinstance(p.get("page"), int) and p.get("W")]
+    if not have:
+        return 0
+    n = 0
+    d = fitz.open(pdf_local)
+    try:
+        for p in have:
+            try:
+                delta = vector_read.read_width_diff(d[p["page"] - 1])
+            except Exception:  # noqa: BLE001
+                delta = 0
+            if delta and p["W"] + delta > 0:
+                p["W"] = int(p["W"] + delta)
+                cd = set(p.get("confirm_dims") or [])
+                cd.add("W")
+                p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
+                n += 1
+    finally:
+        d.close()
+    return n
+
+
+def _propagate_family_depth(products: list[dict[str, Any]]) -> None:
+    """同一产品族（同品名，去掉 -Aタイプ/-W宽 后缀）内，某行缺 D → 借同族已知的 D
+    （同产品线通常同深度，如 デスク-A/B/C 都 D500）。纯本地推断、标复核，不臆造任意数。"""
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for p in products:
+        base = _NAME_SUFFIX_RE.sub("", str(p.get("name_jp") or "").strip())
+        if base:
+            groups.setdefault(base, []).append(p)
+    for grp in groups.values():
+        donor = next((q.get("D") for q in grp if q.get("D") not in (None, "", 0)), None)
+        if donor is None:
+            continue
+        for p in grp:
+            if p.get("D") in (None, "", 0):
+                p["D"] = donor
+                cd = set(p.get("confirm_dims") or [])
+                cd.add("D")
+                p["confirm_dims"] = [k for k in ("W", "D", "H") if k in cd]
+
+
+def _missing_fields(p: dict[str, Any]) -> list[str]:
+    """一条记录缺哪些必填字段（材质/品名/尺寸/数量）。"""
+    miss = []
+    if not (p.get("mat_jp") or p.get("mat_cn")):
+        miss.append("材质")
+    if not (p.get("name_jp") or p.get("name_cn")):
+        miss.append("品名")
+    if any(p.get(k) in (None, "", 0) for k in ("W", "D", "H")):
+        miss.append("尺寸")
+    if p.get("qty") in (None, "", 0):
+        miss.append("数量")
+    return miss
+
+
+def _completeness_gaps(products: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """出单前自检：逐行列出仍缺的必填字段（供说明文件 + 前端提示，绝不塞进 Excel）。"""
+    gaps = []
+    for i, p in enumerate(products, 1):
+        miss = _missing_fields(p)
+        if miss:
+            gaps.append({"row": i, "row_code": p.get("row_code") or "(空品番)",
+                         "page": p.get("page"), "missing": miss})
+    return gaps
+
+
+def _build_spec_notes(project: str, products: list[dict[str, Any]],
+                      completeness: list[dict[str, Any]]) -> str:
+    """说明文件正文：AI/本地提取过程信息 + 逐行复核提示 + 完整性自检。**内容不进 Excel。**"""
+    L = [f"御見積書 生成说明 · {project or '(未命名)'}",
+         "本文件记录提取过程信息与逐项复核提示；这些内容不进 Excel 报价单，仅供内部核对。", ""]
+    L.append(f"一、完整性自检：共 {len(products)} 行。" +
+             (f"以下 {len(completeness)} 行仍有缺项，需人工补齐：" if completeness else "所有必填字段（材质/品名/尺寸/数量）均已填写。"))
+    for g in completeness:
+        L.append(f"    第{g['row']}行 {g['row_code']}（第{g['page']}页）：缺 {'/'.join(g['missing'])}")
+    L += ["", "二、逐行明细（尺寸来源 / 需复核维 / 依据 / 提取备注）："]
+    for i, p in enumerate(products, 1):
+        code = p.get("row_code") or "(空品番)"
+        conf = "/".join(p.get("confirm_dims") or []) or "无"
+        ev = (p.get("dim_evidence") or "").strip() or "—"
+        note = " ".join(x for x in [(p.get("note_jp") or "").strip(),
+                                    (p.get("note_cn") or "").strip()] if x) or "—"
+        mats = "、".join(p.get("mat_jp") or []) or "—"
+        L.append(f"    第{i}行 {code} p{p.get('page')}｜W={p.get('W')} D={p.get('D')} "
+                 f"H={p.get('H')} 数量={p.get('qty')}｜材质={mats}｜来源={p.get('dim_source')} "
+                 f"需复核={conf}｜依据={ev}｜备注={note}")
+    return "\n".join(L)
+
+
 def run(ctx) -> dict[str, Any]:
     params = ctx.params or {}
     pdf_key = params.get("pdf_path") or ""
@@ -139,18 +328,22 @@ def run(ctx) -> dict[str, Any]:
 
         # ① 骨架 + 光栅判定 + 整页图
         json_path = os.path.join(workdir, "products.json")
+        # render_images=False：骨架不渲整页图——看图路会自己按视觉 DPI 重渲（render_vision_images），
+        # 本地路根本不用图，这里的整页图从不被读取。省掉逐页一张 150dpi 大图，明显提速。
         payload = build_scaffold(
             pdf_local, json_path, img_dir=os.path.join(workdir, "pages"),
-            dpi=150, skip_pages=skip_pages, project=project,
+            dpi=150, skip_pages=skip_pages, project=project, render_images=False,
         )
         products: list[dict[str, Any]] = payload["products"]
         raster_pages: list[int] = payload.get("raster_pages", [])
         ctx.report_progress(15)
 
-        # ② 定外形尺寸。vision_mode 三档：
-        #    local  = 纯本地零 AI（几何+文字+术语表，不调 Anthropic、不需 API key）；
-        #    auto   = 按页判定（默认，省钱）：矢量高置信页走廉价文字路（不发图）、扫描/几何不置信页走视觉；
-        #    always = 一律视觉（最准最贵）。
+        # ② 定外形尺寸。核心分流原则：**先判位图还是矢量，再决定用不用 AI**。
+        #    vision_mode 三档：
+        #    local  = 一律本地零 AI（几何+术语表，不调 Anthropic、不需 API key）；
+        #    auto   = 智能（默认·推荐）：**矢量页→本地零 AI（几何可读）；位图页→AI 看图（本地读不了）**；
+        #    always = 一律 AI 看图（最准最贵）。
+        #    AI 看图只读图面尺寸线、不读文字注记（客户手填尺寸常有误）。
         #    多页并行（QUOTE_VISION_CONCURRENCY，默认4）；system prompt 逐页复用走 ephemeral 缓存。
         maps, warnings = _load_glossary_maps(ctx)
         pages = sorted({p["page"] for p in products})
@@ -176,35 +369,27 @@ def run(ctx) -> dict[str, Any]:
                 recs = [p for p in products if p["page"] == pageno]
                 page_text = d[pageno - 1].get_text()
                 gl_lines = dims.glossary_hits_for_text(page_text, maps)
-                if vmode == "local":
-                    path = "local"
-                elif vmode == "always" or dims.page_needs_vision(recs, raster_pages, pageno):
-                    path = "vision"
-                else:
-                    path = "text"
+                # 先判位图/矢量，再按模式决定用不用 AI（矢量→本地，位图→AI 看图）。
+                kind = dims.page_kind(raster_pages, pageno)
+                path = dims.route_for_kind(kind, vmode)
                 try:
                     if path == "vision":
+                        # 位图页：本地几何量不出，交 AI 看图——只读图面尺寸线、不读文字注记。
                         images, legend = dims.render_vision_images(d, pageno, vision_dir)
                         decision = dims.decide_page(
                             claude, pageno=pageno, records=recs, page_text=page_text,
                             images_png=images, image_legend=legend, glossary_lines=gl_lines,
                         )
-                    elif path == "text":
-                        # 廉价文字路：矢量高置信页，不渲染大图、不发图，只跑一次纯文字调用。
-                        decision = dims.decide_page_text(
-                            claude, pageno=pageno, records=recs, page_text=page_text,
-                            glossary_lines=gl_lines,
-                        )
-                    else:  # local：纯本地零 AI
+                    else:  # local：矢量页**纯本地、零 AI**（几何 + 图框品番/数量/尺寸/品名查表 + 术语表）
                         decision = dims.decide_page_local(recs, page_text, maps)
                 except Exception as exc:  # noqa: BLE001
                     # 单页处理失败不拖垮整单：该页返回空决策，走⚠兜底（保留骨架、标 PENDING）。
-                    _lbl = {"vision": "视觉", "text": "文字", "local": "本地"}[path]
+                    _lbl = {"vision": "看图", "local": "本地"}.get(path, "处理")
                     decision = dims.PageDecision(
                         products=[], cost_usd=0.0,
                         warnings=[f"第 {pageno} 页{_lbl}处理失败，已跳过、保留骨架待人工核对：{exc}"],
                     )
-                return pageno, recs, decision, path
+                return pageno, recs, decision, path, kind
             finally:
                 d.close()
 
@@ -213,21 +398,21 @@ def run(ctx) -> dict[str, Any]:
         decisions: dict[int, tuple[list[dict[str, Any]], Any]] = {}
         per_page: list[dict[str, Any]] = []
         n_vision = 0
-        n_text = 0
         n_local = 0
+        bitmap_pages: list[int] = []
+        vector_pages: list[int] = []
         done = 0
         ex = ThreadPoolExecutor(max_workers=workers)
         try:
             futs = {ex.submit(_decide_one, pn): pn for pn in pages}
             for fut in as_completed(futs):
-                pageno, recs, decision, path = fut.result()
+                pageno, recs, decision, path, kind = fut.result()
                 decisions[pageno] = (recs, decision)
                 if path == "vision":
                     n_vision += 1
-                elif path == "text":
-                    n_text += 1
                 else:
                     n_local += 1
+                (bitmap_pages if kind == "bitmap" else vector_pages).append(pageno)
                 cost_usd += decision.cost_usd
                 in_tok += decision.input_tokens
                 out_tok += decision.output_tokens
@@ -237,6 +422,7 @@ def run(ctx) -> dict[str, Any]:
                 # 逐页 token/成本明细：让前端能看「每页（单次）」而非只有整单汇总。
                 per_page.append({
                     "page": pageno,
+                    "kind": kind,
                     "path": path,
                     "input_tokens": decision.input_tokens,
                     "output_tokens": decision.output_tokens,
@@ -249,6 +435,8 @@ def run(ctx) -> dict[str, Any]:
         finally:
             ex.shutdown(wait=False, cancel_futures=True)
         per_page.sort(key=lambda x: x["page"])
+        bitmap_pages.sort()
+        vector_pages.sort()
 
         # 按页序合并，保证 Excel 行序稳定（与并行完成先后无关）
         merged_all: list[dict[str, Any]] = []
@@ -258,6 +446,12 @@ def run(ctx) -> dict[str, Any]:
             merged_all.extend(dims.merge_page_decision(recs, decision))
 
         products = merged_all
+        _apply_width_diff_notes(products, pdf_local)  # 先按图上「W-100」尺寸差注记修正整体宽（W2000→1900），再命名
+        _finalize_names_materials(products)  # 本地补品名（品番查表，变体按修正后 W 加 -W宽）+ 材质中日双语（零 AI）
+        _fill_depth_from_drawing(products, pdf_local, "prefix")      # ① 图上显式「D 前缀」深度（最可靠）
+        _fill_depth_from_drawing(products, pdf_local, "geom_strong")  # ② 几何强档 T1–T3（书桌俯视 400 等，盖过借用）
+        _propagate_family_depth(products)    # ③ 同产品族借深度 D（冰箱柜 580 等，零 AI）
+        _fill_depth_from_drawing(products, pdf_local, "geometry")    # ④ 几何弱档兜底 T4（返却台 670+30=700）
         _mark_duplicate_codes(products)
         payload["products"] = products
         with open(json_path, "w", encoding="utf-8") as f:
@@ -283,12 +477,23 @@ def run(ctx) -> dict[str, Any]:
             warnings.append(f"渲染验证跳过（LibreOffice 不可用或转换失败）：{exc}")
         ctx.report_progress(93)
 
+        # 生成前最终自检：逐行核对必填字段（材质/品名/尺寸/数量）是否有遗漏，写进说明文件。
+        completeness = _completeness_gaps(products)
+        # 说明文件：AI/本地提取的过程信息、逐项复核提示——**这些不进 Excel**，只放这里。
+        notes_name = f"说明_{project or '報価'}_{today}.txt"
+        notes_path = os.path.join(workdir, notes_name)
+        with open(notes_path, "w", encoding="utf-8") as f:
+            f.write(_build_spec_notes(project, products, completeness))
+
         # 上传 outputs 桶（key 用 ASCII，中文名放 display_name 由前端下载时还原）
         prefix = f"{user_id}/{ctx.job_id}"
         files = [_upload(ctx, "outputs", f"{prefix}/{_safe_ascii(display_name, 'quote.xlsx')}", out_xlsx)]
         files[0]["display_name"] = display_name
         for png in check_pngs:
             files.append(_upload(ctx, "outputs", f"{prefix}/check/{os.path.basename(png)}", png))
+        notes_file = _upload(ctx, "outputs", f"{prefix}/{_safe_ascii(notes_name, 'notes.txt')}", notes_path)
+        notes_file["display_name"] = notes_name
+        files.append(notes_file)
         files.append(_upload(ctx, "outputs", f"{prefix}/products.json", json_path))
 
         return {
@@ -299,6 +504,7 @@ def run(ctx) -> dict[str, Any]:
                 "raster_pages": raster_pages,
                 "unconfirmed": fill_summary["unconfirmed"],
                 "missing": fill_summary["missing"],
+                "completeness_gaps": completeness,
                 "cost_usd": round(cost_usd, 4),
                 "model": model,
                 "input_tokens": in_tok,
@@ -306,8 +512,9 @@ def run(ctx) -> dict[str, Any]:
                 "cache_read_input_tokens": cache_read_tok,
                 "cache_creation_input_tokens": cache_write_tok,
                 "vision_calls": n_vision,
-                "text_calls": n_text,
                 "local_calls": n_local,
+                "bitmap_pages": bitmap_pages,
+                "vector_pages": vector_pages,
                 "vision_mode": vmode,
                 "per_page": per_page,
                 "warnings": warnings,

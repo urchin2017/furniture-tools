@@ -78,11 +78,76 @@ def test_build_scaffold_expands_codes_and_leaves_dims_null(drawing_pdf, tmp_path
     assert json.loads(out_json.read_text(encoding="utf-8"))["project"] == "测试项目"
 
 
+def test_build_scaffold_render_images_false_skips_render(drawing_pdf, tmp_path):
+    """render_images=False：不写整页图（Web 生成管线用），但 page_image 路径字段仍在、其余不变。"""
+    payload = build_scaffold(
+        drawing_pdf, str(tmp_path / "p.json"), skip_pages=[1], render_images=False
+    )
+    for p in payload["products"]:
+        assert p["page_image"], "page_image 路径字段应保留"
+        assert not Path(p["page_image"]).exists(), "关掉渲染后整页图不应被写出"
+        assert p["dim_source"] == "PENDING"
+
+
 def test_build_scaffold_skip_pages_and_placeholder(drawing_pdf, tmp_path):
     payload = build_scaffold(drawing_pdf, str(tmp_path / "p.json"), skip_pages=[2])
     # 只剩封面页：无品番 → 建空品番占位记录（无文本层页也要建行的铁律）
     assert [p["row_code"] for p in payload["products"]] == [""]
     assert payload["products"][0]["page"] == 1
+
+
+def test_parse_title_block_reads_drawing_no_and_qty():
+    """图框标题栏：品番在「DRAWING NO.」栏、数量在「QTY」栏（SEKI 式，正文无款号）。"""
+    from skills.drawing_to_quotation.extract_scaffold import parse_title_block
+
+    # 值与标签被拉平成相邻行（值在标签前）
+    text = "QTY\n96\nTITLE\nFINISHING LIST\nCIY_B-03\nDRAWING NO.\n2026/04/22\nDATE\n"
+    code, qty = parse_title_block(text)
+    assert code == "CIY_B-03" and qty == 96
+    # 其它品番形态
+    assert parse_title_block("TV-01\nDRAWING NO.\n")[0] == "TV-01"
+    assert parse_title_block("HB-02\nDRAWING NO.\n")[0] == "HB-02"
+    # 无标题栏 → (None, None)
+    assert parse_title_block("just some text") == (None, None)
+
+
+def test_dedupe_multisheet_collapses_continuation_keeps_variants():
+    """多页去重：同品番 1/2·2/2 合成一行（去重复计数）；两个各自 1/1 的同码变体都保留；
+    无首页的孤立续页保留。"""
+    from skills.drawing_to_quotation.extract_scaffold import _dedupe_multisheet, parse_sheet_no
+
+    assert parse_sheet_no("SHEET NO.\n1/2\n") == (1, 2)
+    assert parse_sheet_no("没有张数") is None
+    prods = [
+        {"row_code": "CIY_B-02", "page": 3, "text_dims": {"W": 2215, "D": 1275, "H": 2265}, "_sheet": (1, 2)},
+        {"row_code": "CIY_B-02", "page": 4, "text_dims": {"W": None, "D": None, "H": None}, "_sheet": (2, 2)},
+        {"row_code": "CIY_B-04", "page": 6, "text_dims": {"W": 2000, "D": 180, "H": 1020}, "_sheet": (1, 1)},
+        {"row_code": "CIY_B-04", "page": 7, "text_dims": {"W": 3600, "D": 180, "H": 1020}, "_sheet": (1, 1)},
+        {"row_code": "CIY_B-01", "page": 2, "text_dims": {"W": None, "D": None, "H": None}, "_sheet": (2, 2)},
+    ]
+    out = _dedupe_multisheet(prods)
+    pages = [(p["row_code"], p["page"]) for p in out]
+    assert ("CIY_B-02", 3) in pages and ("CIY_B-02", 4) not in pages, "续页 2/2 应并入首页"
+    assert ("CIY_B-04", 6) in pages and ("CIY_B-04", 7) in pages, "各自 1/1 的同码变体都保留"
+    assert ("CIY_B-01", 2) in pages, "孤立续页（无首页）保留"
+    assert len(out) == 4
+
+
+def test_build_scaffold_uses_title_block_when_no_inbody_code(tmp_path):
+    """正文无款号、品番只在图框 → 骨架用图框品番 + 数量（不再是空占位）。"""
+    doc = fitz.open()
+    doc.new_page(width=842, height=595)  # 封面
+    p = doc.new_page(width=842, height=595)
+    p.draw_rect(fitz.Rect(100, 100, 500, 300))
+    p.insert_text((520, 400),
+                  "QTY\n4\nCIY_B-02\nDRAWING NO.\nW2215 D1275 H2265\n面材：メラミン化粧板",
+                  fontsize=7, fontname="china-s")
+    pdf = tmp_path / "seki.pdf"
+    doc.save(pdf)
+    payload = build_scaffold(str(pdf), str(tmp_path / "p.json"), skip_pages=[1])
+    rec = payload["products"][0]
+    assert rec["row_code"] == "CIY_B-02", "图框品番应进骨架"
+    assert rec["qty_hint"] == 4, "图框数量应进 qty_hint"
 
 
 # ---------- 集成：scaffold → fill_quote 闭环 ----------
@@ -119,7 +184,9 @@ def test_fill_quote_flags_unconfirmed_rows(drawing_pdf, template_xlsx, tmp_path)
                                "", 18, 30, False)
     assert set(summary["unconfirmed"]) == {"F01", "F01A"}
     ws = load_workbook(out_xlsx).active
-    assert ws["B18"].value.startswith("⚠"), "未确认行应标 ⚠"
+    # 新方案：品番不再加 ⚠ 前缀；缺尺寸/数量的行改为备注写极简标记 + 不确定单格淡黄。
+    assert not (ws["B18"].value or "").startswith("⚠"), "品番不应再加 ⚠ 前缀"
+    assert "不确定" in (ws["N18"].value or ""), "缺尺寸/数量的行备注应写「…不确定」"
 
 
 # ---------- 边界 / 异常 ----------

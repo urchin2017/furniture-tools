@@ -130,8 +130,14 @@ def decide_page(
     image_legend: list[str],
     glossary_lines: list[str],
 ) -> PageDecision:
-    """对一页图纸跑视觉判断，返回该页全部品番的确认结果。"""
-    user_text = build_user_text(pageno, records, page_text, glossary_lines, image_legend)
+    """对一页图纸跑视觉判断，返回该页全部品番的确认结果。
+
+    **只看图、不读文字尺寸**（image_only）：客户图上手填/打印的 W/D/H 常有笔误，一律不喂给模型，
+    尺寸只让它从图面最外侧尺寸链读出。仅把品番清单 + 几何量取(measured) + 术语表译法作为辅助。
+    """
+    user_text = build_user_text(
+        pageno, records, page_text, glossary_lines, image_legend, image_only=True
+    )
     # max_tokens 给足：adaptive thinking 会先花一段"思考"额度，复杂/大页（如 47MB 高清扫描页）
     # 若额度太小，会在思考阶段就被截断、来不及吐 JSON → 空输出。16000 给思考+JSON 留足空间。
     result = claude.complete_vision(
@@ -159,22 +165,29 @@ def decide_page(
     )
 
 
-def page_needs_vision(records: list[dict[str, Any]], raster_pages, pageno: int) -> bool:
-    """分流判定：这一页要不要送**视觉**（贵）？还是几何+文字就够（廉价文字路）？
+def page_kind(raster_pages, pageno: int) -> str:
+    """判定一页图纸是**位图**还是**矢量**（分流的唯一依据）。
 
-    成本控制铁律：矢量高置信页 W/H 几何已可靠量出 → 不必再送图给 AI「看」，走纯文字调用即可。
-    仅以下情形才需视觉：光栅/扫描页、无矢量层、几何低置信、或 W/H 任一轴局部疑似/超界。
+    - 位图(bitmap)：光栅页——图纸本体是一张位图（扫描/导出图片），几何引擎量不出尺寸线，
+      本地无法可靠读尺寸 → 需要 AI 看图。
+    - 矢量(vector)：图纸是矢量 CAD，尺寸线可被几何引擎量取 → 本地即可读，无需 AI。
     """
-    if pageno in (raster_pages or []):
-        return True
-    m = (records[0].get("measured") or {}) if records else {}
-    if not m.get("vector_ok") or m.get("confidence") != "high":
-        return True
-    for axis in ("W", "H"):
-        a = m.get(axis) or {}
-        if a.get("overall_value") is None or a.get("suspect_local") or not a.get("extent_ok"):
-            return True
-    return False  # 矢量 + 高置信 + W/H 干净 → 走廉价文字路，不发图
+    return "bitmap" if pageno in (raster_pages or []) else "vector"
+
+
+def route_for_kind(kind: str, vmode: str) -> str:
+    """按用户设定的三档模式，给出该页的处理路径 "local"（零 AI）或 "vision"（AI 看图）。
+
+    - local ：一律本地（零 AI、零成本），拿不准的标 ⚠ 待人工。
+    - always：一律 AI 看图（最准最贵）。
+    - auto（智能·推荐）：**矢量页→本地零 AI；位图页→AI 看图**。
+      即「能本地读的（矢量）绝不花 AI，只有本地读不了的（位图）才用 AI」。
+    """
+    if vmode == "local":
+        return "local"
+    if vmode == "always":
+        return "vision"
+    return "vision" if kind == "bitmap" else "local"
 
 
 def decide_page_text(
@@ -215,9 +228,43 @@ def decide_page_text(
 
 
 # ============ 纯本地零 AI 提取（不调 Anthropic）============
-# 品名/材質关键字锚定（通用尽力版；拿到真实样图后按其模板精修）。
-_NAME_RE = re.compile(r"(?:品名|名称|品名称)\s*[:：]?\s*([^\n\r]{1,40})")
-_MAT_RE = re.compile(r"(?:材質|材质|材料|仕様)\s*[:：]?\s*([^\n\r]{1,60})")
+# 品名/材質关键字锚定。真实图纸的材质**很少写「材質：」**，多写「面材：」「脚：」「フレーム：」，
+# 或直接写材质名（メラミン化粧板…）——旧版只认「材質/材料/仕様」前缀，导致 SEKI 全漏、创明部分漏。
+_NAME_RE = re.compile(r"(?:品名|名称|品名称|产品名|産品名|商品名)\s*[:：]?\s*([^\n\r]{1,40})")
+# 材质名词表（一行含其中任一词 → 该行就是材质规格，整行收）。**中日双语**——
+# 创明用中文写材质（防火板/富美家/平衡板/PVC…），SEKI 用日文（メラミン化粧板…），旧版只有
+# 日文词表 → 创明材质全漏、还误把「脚：客供现场安装」这类供给/安装说明当成材质。改为纯词表命中。
+_MAT_VOCAB = (
+    # 日文
+    "メラミン化粧板", "化粧板", "リアテック", "無垢材", "ステンレス", "スチール",
+    "ガラス", "ミラー", "パイプ", "実木", "ポリ板", "樹脂", "アクリル", "ランバー",
+    "突板", "塗装", "メラミン", "鏡面",
+    # 中文（创明）
+    "防火板", "富美家", "平衡板", "PVC", "三聚氰胺", "不锈钢", "不銹鋼", "玻璃",
+    "镜面", "橡木", "涂装", "油漆", "亚克力", "钢化", "密度板", "多层板", "夹板",
+    "実木", "无垢",
+)
+# 供给/安装类说明词——含这些但**不含**材质名词的行不是材质（如「脚：客供 现场安装」）。
+_SUPPLY_ONLY = ("客供", "现场安装", "現場", "支給", "工場提供", "别途", "別途", "施工")
+
+
+def _extract_materials(text: str, limit: int = 8) -> list[str]:
+    """抽取材质规格行：一行含材质名词即整行收（含部位前缀如「正面：防火板」）。去重保序、限量。
+    纯供给/安装说明（无材质名词）自动被排除。"""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in (text or "").splitlines():
+        ln = raw.strip()
+        if not (2 <= len(ln) <= 40):
+            continue
+        if not any(v in ln for v in _MAT_VOCAB):   # 无材质名词 → 不是材质行（供给/安装说明被滤掉）
+            continue
+        if ln not in seen:
+            seen.add(ln)
+            out.append(ln)
+            if len(out) >= limit:
+                break
+    return out
 
 
 def glossary_translate(term: str, maps: dict[str, dict[str, str]]) -> str:
@@ -254,6 +301,11 @@ def _local_axis(measured: dict, text_dims: dict, axis: str) -> tuple[int | None,
         return gv, "geometry", mismatch
     if tv is not None:
         return tv, "text", True  # 纯靠文字注记 → 一律复核（可能是分割/局部寸法）
+    # 兜底（图框无注记时）：采用几何引擎量到的**外形尺寸链** overall_value，即便中/低置信也用——
+    # 尺寸线本就在图上、纯 Python 量取、零 AI，胜过留空；一律标复核（confirm）。
+    ov = a.get("overall_value")
+    if measured.get("vector_ok") and ov is not None:
+        return int(round(ov)), "geometry_lc", True
     return None, "none", True
 
 
@@ -268,10 +320,7 @@ def decide_page_local(
     m = _NAME_RE.search(page_text or "")
     if m:
         name_jp = m.group(1).strip()
-    mat_jp: list[str] = []
-    mm = _MAT_RE.search(page_text or "")
-    if mm and mm.group(1).strip():
-        mat_jp = [mm.group(1).strip()]
+    mat_jp = _extract_materials(page_text)
 
     products: list[dict[str, Any]] = []
     warnings: list[str] = []
@@ -294,9 +343,8 @@ def decide_page_local(
         nm_cn = glossary_translate(nm_jp, maps)
         mats_jp = mat_jp or [str(x) for x in (r.get("mat_jp") or []) if str(x).strip()]
         mats_cn = [c for c in (glossary_translate(x, maps) for x in mats_jp) if c]
-        note = "本地提取（几何+文字+术语表，未经 AI 看图），尺寸/品名务必人工核对。"
-        if nm_jp and not nm_cn:
-            note += "（品名未命中术语表，保留日文待译/补词条）"
+        # 备注不写「本地提取…」这类流程/AI 说明——那些只进说明文件，绝不进 Excel。
+        # Excel 备注由 fill_quote 按不确定度自动生成极简标记（尺寸/数量不确定）。
         products.append(_clean_product({
             "row_code": code,
             "name_jp": nm_jp,
@@ -308,7 +356,7 @@ def decide_page_local(
             "dim_source": src,
             "dim_evidence": "本地几何量取/文字注记提取",
             "confirm_dims": confirm,
-            "note_jp": "", "note_cn": note,
+            "note_jp": "", "note_cn": "",
         }))
         if src == "PENDING" or confirm:
             flag = "/".join(confirm) or "尺寸"
@@ -324,6 +372,8 @@ def merge_page_decision(
     - 品番对上 → 更新尺寸/数量/双语文案；
     - 视觉补出的新品番（骨架漏拆的变体）→ 以本页第一条骨架为底新建记录；
     - 骨架里的空品番占位（无文本层页）在视觉给出品番后剔除；
+    - **决策自己也没品番（如无文本层页的本地提取，品番在图框里、提不出来）→ 仍把它的
+      尺寸并到空品番占位上，绝不丢弃**（否则整页只剩空白骨架，本地量出的 W/D/H 全没了）；
     - 视觉漏答的骨架品番保持 PENDING（fill_quote 会标 ⚠）。
     """
     by_code = {_norm_code(r.get("row_code", "")): r for r in scaffold_records}
@@ -332,12 +382,20 @@ def merge_page_decision(
     seen: set[str] = set()
     for p in decision.products:
         code = p["row_code"]
-        if not code or code in seen:
+        if not code:
+            # 决策无品番：并到本页空品番占位（若有且未被认领），保留其尺寸；否则跳过。
+            if "" in by_code and "" not in seen:
+                rec = dict(by_code[""])
+                rec.update(p)
+                merged.append(rec)
+                seen.add("")
+            continue
+        if code in seen:
             continue
         seen.add(code)
         if code in by_code:
             rec = dict(by_code[code])
-        elif "" in by_code:
+        elif "" in by_code and "" not in seen:
             rec = dict(by_code.pop(""))  # 空品番占位（无文本层页）被本条认领，不再复用
         else:
             rec = dict(base)             # 骨架漏拆的变体：以本页第一条为底新建

@@ -2,6 +2,12 @@
 # 构建上下文是仓库根（见 docker-compose.yml 的 context: .），以便同时拷 shared/py。
 FROM python:3.11-slim
 
+# slim 镜像默认 C/POSIX 语言环境=ASCII，日/中文的 print/文件名一编码就 UnicodeEncodeError；
+# 强制 Python UTF-8 模式，避免视觉渲染等步骤因中文调试输出崩溃。
+ENV PYTHONUTF8=1 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
 # LibreOffice(calc/writer) 供 render_check 把 xlsx 渲成目视验证 PNG；
 # fonts-noto-cjk 保证日/中字符不豆腐块。
 RUN apt-get update && apt-get install -y --no-install-recommends \

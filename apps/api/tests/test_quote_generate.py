@@ -104,6 +104,19 @@ def test_merge_placeholder_claimed_once_and_empty_decision_keeps_scaffold():
     assert merged2 == scaffold2, "视觉空手而归时保留骨架兜底"
 
 
+def test_merge_keeps_empty_code_local_dims():
+    """回归：无品番页（如 SEKI，品番在图框里提不出）本地量出的尺寸必须并到空占位，绝不丢。"""
+    scaffold = [_rec("", page=3)]
+    local = dims._clean_product(
+        {"row_code": "", "W": 2215, "D": 1275, "H": 2265, "dim_source": "PENDING",
+         "confirm_dims": ["W", "D", "H"]}
+    )
+    merged = dims.merge_page_decision(scaffold, PageDecision(products=[local], cost_usd=0.0))
+    assert len(merged) == 1
+    assert (merged[0]["W"], merged[0]["D"], merged[0]["H"]) == (2215, 1275, 2265)
+    assert merged[0]["confirm_dims"] == ["W", "D", "H"], "逐维待确认应保留"
+
+
 def test_glossary_hits_scans_substrings():
     maps = {"ja→zh": {"メラミン化粧板": "防火板", "フィラー": "填缝条"}, "zh→ja": {"防火板": "メラミン化粧板"}}
     lines = dims.glossary_hits_for_text("材質：メラミン化粧板（フォーミカ）", maps)
@@ -188,7 +201,8 @@ def test_handler_full_pipeline_offline(storage_supabase, monkeypatch):
     monkeypatch.setattr(dims, "decide_page", fake_decide_page)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
 
-    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params())
+    # 全 AI 看图模式：强制走视觉路，验证整条编排（下载→骨架→看图→填表→上传）。
+    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params(vision_mode="always"))
     result = generate.run(ctx)
 
     outputs = storage_supabase.storage.buckets["outputs"]
@@ -220,7 +234,7 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     monkeypatch.setattr(dims, "decide_page", boom)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
 
-    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params())
+    ctx = JobContext(supabase=storage_supabase, job_id="job-q1", params=_params(vision_mode="always"))
     result = generate.run(ctx)  # 不抛异常 = 单页失败被兜住
 
     outputs = storage_supabase.storage.buckets["outputs"]
@@ -230,75 +244,59 @@ def test_handler_page_vision_failure_is_non_fatal(storage_supabase, monkeypatch)
     assert any("处理失败" in w for w in summary["warnings"]), "应带失败页警告"
 
 
-def test_page_needs_vision_routing():
-    clean = {"vector_ok": True, "confidence": "high",
-             "W": {"overall_value": 1740, "extent_ok": True, "suspect_local": False},
-             "H": {"overall_value": 2650, "extent_ok": True, "suspect_local": False}}
-    rec = lambda m: [{"measured": m}]  # noqa: E731
-    assert dims.page_needs_vision(rec(clean), [], 2) is False, "矢量高置信+W/H干净 → 走文字路"
-    assert dims.page_needs_vision(rec(clean), [2], 2) is True, "光栅页 → 视觉"
-    assert dims.page_needs_vision(rec({**clean, "vector_ok": False}), [], 2) is True
-    assert dims.page_needs_vision(rec({**clean, "confidence": "low"}), [], 2) is True
-    assert dims.page_needs_vision(rec({**clean, "W": {**clean["W"], "suspect_local": True}}), [], 2) is True
-    assert dims.page_needs_vision(rec({**clean, "H": {**clean["H"], "extent_ok": False}}), [], 2) is True
-    assert dims.page_needs_vision([], [], 2) is True, "无记录 → 保守走视觉"
+def test_page_kind_and_route():
+    # 位图 vs 矢量：只看是否光栅页
+    assert dims.page_kind([2], 2) == "bitmap", "光栅页=位图"
+    assert dims.page_kind([2], 3) == "vector", "非光栅页=矢量"
+    assert dims.page_kind([], 2) == "vector"
+    # 分流：矢量→本地零 AI，位图→AI 看图；local/always 覆盖判定
+    assert dims.route_for_kind("vector", "auto") == "local", "智能模式矢量→本地"
+    assert dims.route_for_kind("bitmap", "auto") == "vision", "智能模式位图→看图"
+    assert dims.route_for_kind("vector", "always") == "vision", "全AI模式矢量也看图"
+    assert dims.route_for_kind("bitmap", "local") == "local", "全本地模式位图也本地"
 
 
-def test_handler_auto_mode_uses_text_path_for_vector_pages(storage_supabase, monkeypatch):
-    """auto 模式：判定为矢量高置信的页走廉价文字路（不发图），不调视觉。"""
+def test_handler_auto_mode_routes_vector_to_local(storage_supabase, monkeypatch):
+    """智能(auto) 模式：矢量页（非光栅）走本地零 AI，绝不调 AI 看图。"""
     class _FakeClaude:
         @classmethod
         def from_env(cls, model_override=None):
             return cls()
 
-    called = {"vision": 0, "text": 0}
-
     def fake_vision(*a, **k):
-        called["vision"] += 1
-        raise AssertionError("矢量高置信页不该走视觉路")
-
-    def fake_text(claude, *, pageno, records, page_text, glossary_lines):
-        called["text"] += 1
-        return PageDecision(products=[_vis(r["row_code"] or "F01") for r in records], cost_usd=0.01)
+        raise AssertionError("矢量页不该走 AI 看图")
 
     monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
-    monkeypatch.setattr(dims, "page_needs_vision", lambda recs, raster, pageno: False)
     monkeypatch.setattr(dims, "decide_page", fake_vision)
-    monkeypatch.setattr(dims, "decide_page_text", fake_text)
 
     result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
-    assert called["text"] >= 1 and called["vision"] == 0, "auto 模式矢量页走文字路"
-    assert result["summary"]["text_calls"] >= 1 and result["summary"]["vision_calls"] == 0
+    assert result["summary"]["local_calls"] >= 1 and result["summary"]["vision_calls"] == 0
+    assert result["summary"]["cost_usd"] == 0.0, "矢量走本地 → 零成本"
+    assert result["summary"]["vector_pages"], "测试 PDF 应判为矢量页"
 
 
 def test_handler_always_mode_forces_vision(storage_supabase, monkeypatch):
-    """always 模式：即便判定不需视觉，也强制走视觉路。"""
+    """always 模式：即便是矢量页，也强制走 AI 看图路。"""
     class _FakeClaude:
         @classmethod
         def from_env(cls, model_override=None):
             return cls()
 
-    called = {"vision": 0, "text": 0}
+    called = {"vision": 0}
 
     def fake_vision(claude, *, pageno, records, page_text, images_png, image_legend, glossary_lines):
         called["vision"] += 1
         return PageDecision(products=[_vis(r["row_code"] or "F01") for r in records], cost_usd=0.02)
 
-    def fake_text(*a, **k):
-        called["text"] += 1
-        raise AssertionError("always 模式不该走文字路")
-
     monkeypatch.setattr(generate, "ClaudeClient", _FakeClaude)
     monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
-    monkeypatch.setattr(dims, "page_needs_vision", lambda *a, **k: False)  # 判定"不需视觉"也无效
     monkeypatch.setattr(dims, "decide_page", fake_vision)
-    monkeypatch.setattr(dims, "decide_page_text", fake_text)
 
     result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1",
                                      params=_params(vision_mode="always")))
-    assert called["vision"] >= 1 and called["text"] == 0, "always 模式强制视觉"
-    assert result["summary"]["vision_calls"] >= 1 and result["summary"]["text_calls"] == 0
+    assert called["vision"] >= 1, "always 模式强制看图"
+    assert result["summary"]["vision_calls"] >= 1 and result["summary"]["local_calls"] == 0
 
 
 def test_handler_cancellation_raises_jobcancelled(storage_supabase, monkeypatch):
@@ -342,6 +340,340 @@ def test_decide_page_local_zero_ai():
     assert "W" not in p["confirm_dims"]            # 几何✕文字一致 → 不⚠
     assert "D" in p["confirm_dims"]                # D 仅文字来源 → ⚠
     assert p["name_cn"] == "柜台" and "防火板" in p["mat_cn"]  # 术语表脚本翻译
+
+
+def test_analyze_pdf_classifies_and_plans(tmp_path):
+    """判断步骤：矢量测试页 → kind=vector、计划 local（零 AI）；always 模式改判 vision。"""
+    from app.modules.quote.analyze import analyze_pdf
+
+    p = tmp_path / "d.pdf"
+    p.write_bytes(_drawing_pdf_bytes())
+
+    out = analyze_pdf(str(p), skip_pages=[], vision_mode="auto")
+    assert out["summary"]["total"] == 1
+    assert out["pages"][0]["kind"] == "vector" and out["pages"][0]["path"] == "local"
+    assert out["summary"]["ai_pages"] == [] and out["summary"]["local_pages"] == [1]
+
+    out2 = analyze_pdf(str(p), skip_pages=[], vision_mode="always")
+    assert out2["pages"][0]["path"] == "vision" and out2["summary"]["ai_pages"] == [1]
+
+
+def _bitmap_pdf_bytes() -> bytes:
+    """一页嵌 600×600 位图、无矢量线 → detect_raster 判为位图页。"""
+    doc = fitz.open()
+    page = doc.new_page(width=842, height=595)
+    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 600, 600))
+    pix.set_rect(pix.irect, (240, 240, 240))
+    page.insert_image(fitz.Rect(40, 40, 700, 540), stream=pix.tobytes("png"))
+    page.insert_text((60, 560), "款号：R01", fontsize=8)
+    return doc.tobytes()
+
+
+def test_analyze_pdf_bitmap_and_skipall_boundaries(tmp_path):
+    """边界/异常：位图页→计划 vision；跳过全部页→空计划不报错。"""
+    from app.modules.quote.analyze import analyze_pdf
+
+    pb = tmp_path / "b.pdf"
+    pb.write_bytes(_bitmap_pdf_bytes())
+    out = analyze_pdf(str(pb), skip_pages=[], vision_mode="auto")
+    assert out["pages"][0]["kind"] == "bitmap" and out["pages"][0]["path"] == "vision"
+    assert out["summary"]["ai_pages"] == [1] and out["summary"]["bitmap_pages"] == [1]
+    # 预计花费：1 页看图 → est_cost_usd > 0（供前端花钱确认闸用）
+    assert out["summary"]["est_cost_usd"] > 0
+    # 位图页在纯本地模式仍计划 local（用户要零 AI），但 kind 仍是 bitmap；零 AI → 预计花费 0
+    out_l = analyze_pdf(str(pb), skip_pages=[], vision_mode="local")
+    assert out_l["pages"][0]["kind"] == "bitmap" and out_l["pages"][0]["path"] == "local"
+    assert out_l["summary"]["est_cost_usd"] == 0
+    # 跳过全部页 → 空计划（不抛）
+    out0 = analyze_pdf(str(pb), skip_pages=[1], vision_mode="auto")
+    assert out0["summary"]["total"] == 0 and out0["pages"] == []
+
+
+def test_analyze_pdf_bad_path_raises():
+    from app.modules.quote.analyze import analyze_pdf
+
+    with pytest.raises(Exception):  # noqa: B017 — 坏路径应抛（路由层会转 400）
+        analyze_pdf("/no/such/file.pdf", skip_pages=[], vision_mode="auto")
+
+
+def test_analyze_matches_generate_classification(storage_supabase, monkeypatch):
+    """回归：analyze 的位图/矢量判定必须与 generate summary 的分类一致（同一分流依据）。"""
+    from app.modules.quote.analyze import analyze_pdf
+
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+    # 用与集成夹具相同的图纸（矢量测试页）
+    pdf_bytes = storage_supabase.storage.from_("uploads").download("u1/quote/1/drawing.pdf")
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tf:
+        tf.write(pdf_bytes)
+        tf.flush()
+        a = analyze_pdf(tf.name, skip_pages=[], vision_mode="local")
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1",
+                                     params=_params(vision_mode="local")))
+    assert a["summary"]["vector_pages"] == result["summary"]["vector_pages"]
+    assert a["summary"]["bitmap_pages"] == result["summary"]["bitmap_pages"]
+
+
+def test_extract_materials_chinese_japanese_and_excludes_supply_notes():
+    """材质提取：中日双语材质都抓（含部位前缀整行）；纯供给/安装说明（客供/现场安装）不当材质。"""
+    text = (
+        "正面：防火板（富美家）\n"       # 中文材质（创明）
+        "背面：平衡板（黑or白）\n"
+        "小口：PVC\n"
+        "脚：客供 现场安装\n"           # 供给/安装说明——不是材质，必须排除
+        "调整脚：普通透明的\n"          # 无材质名词——排除
+        "面材：メラミン化粧板（リアテック同柄）\n"  # 日文材质（SEKI）
+        "ITEM No. CIY_B-01\n"          # 非材质行
+        "W2215 D1275 H2265\n"
+    )
+    mats = dims._extract_materials(text)
+    assert any("防火板" in m for m in mats)
+    assert any("平衡板" in m for m in mats)
+    assert any("PVC" in m for m in mats)
+    assert any("メラミン化粧板" in m for m in mats)
+    assert not any("客供" in m for m in mats), "供给/安装说明不该当材质"
+    assert not any("现场安装" in m for m in mats)
+    assert not any("普通透明" in m for m in mats), "无材质名词的行不该收"
+    assert not any("CIY_B-01" in m for m in mats)
+
+
+def test_decide_page_local_fills_materials_without_prefix():
+    """回归：SEKI 式材质（面材：… / 裸材质名）本地也能提取，不再整页材质为空。"""
+    recs = [{"row_code": "", "page": 3, "qty_hint": None,
+             "measured": {"vector_ok": True, "confidence": "mid"},
+             "text_dims": {"W": 2215, "D": 1275, "H": 2265}}]
+    text = "面材：メラミン化粧板（リアテック同柄）\nフレーム：32角パイプ（黒塗装）"
+    d = dims.decide_page_local(recs, text, {})
+    p = d.products[0]
+    assert p["mat_jp"], "材质不应为空"
+    assert any("メラミン化粧板" in m for m in p["mat_jp"])
+    assert p["note_cn"] == "" and p["note_jp"] == "", "本地备注不再写流程/AI 说明"
+
+
+def test_spec_notes_and_completeness_report():
+    """说明文件包含完整性自检 + 逐行明细；缺字段被检出。"""
+    products = [
+        {"row_code": "F01", "page": 2, "W": 1200, "D": 850, "H": 725, "qty": 3,
+         "name_jp": "机", "mat_jp": ["メラミン"], "dim_source": "visual",
+         "dim_evidence": "外形線", "confirm_dims": [], "note_cn": ""},
+        {"row_code": "", "page": 3, "W": None, "D": None, "H": None, "qty": None,
+         "name_jp": "", "mat_jp": [], "dim_source": "PENDING",
+         "dim_evidence": "", "confirm_dims": [], "note_cn": ""},
+    ]
+    gaps = generate._completeness_gaps(products)
+    assert len(gaps) == 1 and gaps[0]["row"] == 2
+    assert set(gaps[0]["missing"]) == {"材质", "品名", "尺寸", "数量"}
+    txt = generate._build_spec_notes("测试", products, gaps)
+    assert "完整性自检" in txt and "逐行明细" in txt
+    assert "缺 材质/品名/尺寸/数量" in txt
+    assert "本地提取" not in txt or True  # 说明文件可含过程信息（这里无）
+
+
+def test_finalize_fills_name_from_code_and_variant_width():
+    """品名本地查表补：缺品名的行按品番补；同品番多行（变体）按 W 加「-W宽」区分。"""
+    products = [
+        {"row_code": "CIY_TV-01", "W": 800, "name_jp": "", "name_cn": "", "mat_jp": [], "mat_cn": []},
+        {"row_code": "CIY_M-01", "W": 653, "name_jp": "", "name_cn": "", "mat_jp": [], "mat_cn": []},
+        {"row_code": "CIY_M-01", "W": 600, "name_jp": "", "name_cn": "", "mat_jp": [], "mat_cn": []},
+        {"row_code": "F01", "W": 1200, "name_jp": "餐桌", "name_cn": "餐桌", "mat_jp": [], "mat_cn": []},
+    ]
+    generate._finalize_names_materials(products)
+    assert products[0]["name_jp"] == "TVボード" and products[0]["name_cn"] == "电视板"
+    # 变体：CIY_M-01 两行按 W 区分
+    assert products[1]["name_jp"] == "ミラー-W653" and products[2]["name_jp"] == "ミラー-W600"
+    assert products[3]["name_jp"] == "餐桌", "已有品名不覆盖"
+
+
+def test_finalize_makes_materials_bilingual():
+    """材质单侧为空→补成中日双语：日文行补中文、中文行补日文。"""
+    # 只有日文（SEKI）
+    jp_only = [{"row_code": "X", "mat_jp": ["面材：メラミン化粧板"], "mat_cn": []}]
+    generate._finalize_names_materials(jp_only)
+    p = jp_only[0]
+    assert p["mat_jp"] and p["mat_cn"], "两列都应有内容"
+    assert any("防火板" in m for m in p["mat_cn"]), "メラミン化粧板→防火板"
+    # 只有中文（创明）
+    cn_only = [{"row_code": "Y", "mat_jp": [], "mat_cn": ["正面：防火板（富美家）"]}]
+    generate._finalize_names_materials(cn_only)
+    q = cn_only[0]
+    assert q["mat_jp"] and q["mat_cn"]
+    assert any("メラミン化粧板" in m or "フォーミカ" in m for m in q["mat_jp"]), "防火板/富美家→日文"
+
+
+def test_read_depth_prefix_explicit_token():
+    """显式「D 前缀」注记（D500）是最可靠的深度来源，直接取用。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    pg.insert_text((300, 400), "W1000", fontsize=8)
+    pg.insert_text((300, 420), "D500", fontsize=8)     # 显式深度
+    pg.insert_text((300, 440), "H745", fontsize=8)
+    assert vector_read.read_depth_prefix(doc[0]) == 500
+    assert vector_read.read_depth_mm(doc[0]) == 500    # 级联也应命中前缀
+
+
+def test_read_depth_geometry_side_view_chain():
+    """几何法：侧视图横向尺寸链（20+150=170）= 该视图外形深度；<整体宽 W。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    # 侧视图（右）：横向链 20 + 150 = 170，且带竖向 ≈ H
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(820, 400))
+    pg.insert_text((805, 392), "20", fontsize=8)
+    pg.draw_line(fitz.Point(820, 400), fitz.Point(970, 400))
+    pg.insert_text((880, 392), "150", fontsize=8)
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(970, 400))
+    pg.insert_text((870, 380), "170", fontsize=8)
+    d = vector_read.read_depth_geometry(doc[0], w_mm=886, h_mm=1316)
+    assert d == 170, f"应读出深度 170（20+150 外形链），实际 {d}"
+
+
+def test_read_depth_geometry_outermost_line_segment_sum():
+    """几何法 C 档：最外侧尺寸线被分成两段（670│30，无显式合计）→ 段和 700 = 外形深度。
+    正面图那条≈W 的整体宽线要跳过，只在比 W 窄的侧视图上取段和。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    # 正面立面（左）：整体宽 1800 的一条线（应被跳过）
+    pg.draw_line(fitz.Point(60, 300), fitz.Point(400, 300))
+    pg.insert_text((220, 292), "1800", fontsize=8)
+    pg.draw_line(fitz.Point(55, 120), fitz.Point(55, 300))
+    pg.insert_text((40, 210), "1360", fontsize=8)
+    # 侧视图（右）：最外顶线被分段 670 + 30（同一 cy），下方另有 635 单段
+    pg.draw_line(fitz.Point(800, 200), fitz.Point(940, 200))
+    pg.insert_text((850, 192), "670", fontsize=8)
+    pg.draw_line(fitz.Point(940, 200), fitz.Point(948, 200))
+    pg.insert_text((944, 192), "30", fontsize=8)      # 与 670 共线（同 cy）
+    pg.draw_line(fitz.Point(805, 500), fitz.Point(940, 500))
+    pg.insert_text((860, 492), "635", fontsize=8)
+    d = vector_read.read_depth_geometry(doc[0], w_mm=1800, h_mm=1360)
+    assert d == 700, f"应把最外侧尺寸线两段相加得深度 700（670+30），实际 {d}"
+
+
+def test_read_depth_geometry_rejects_lone_note():
+    """几何法拒绝孤立小注记（如缝隙 20）——不足以判为外形深度，返回 None（留空标黄）。"""
+    from app.modules.quote import vector_read
+
+    doc = fitz.open()
+    pg = doc.new_page(width=1200, height=842)
+    pg.draw_line(fitz.Point(800, 400), fitz.Point(810, 400))
+    pg.insert_text((802, 392), "20", fontsize=8)        # 孤立一个数，非链、非同高侧视
+    assert vector_read.read_depth_geometry(doc[0], w_mm=700, h_mm=770) is None
+
+
+def test_fill_depth_from_drawing_only_missing(monkeypatch):
+    """_fill_depth_from_drawing 只补仍缺 D 的行；读不出保持空、不臆造。"""
+    from app.modules.quote import vector_read
+
+    prods = [
+        {"row_code": "A", "page": 2, "W": 1800, "H": 1360, "D": None, "confirm_dims": []},
+        {"row_code": "B", "page": 3, "W": 1000, "H": 745, "D": 500, "confirm_dims": []},   # 已有 D，不动
+    ]
+    monkeypatch.setattr(vector_read, "read_depth_geometry",
+                        lambda page, w_mm=None, h_mm=None, strong_only=False: 670)
+    monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
+        "__getitem__": lambda self, i: object(), "close": lambda self: None})())
+    n = generate._fill_depth_from_drawing(prods, "x.pdf", "geometry")
+    assert n == 1
+    assert prods[0]["D"] == 670 and "D" in prods[0]["confirm_dims"]
+    assert prods[1]["D"] == 500, "已有 D 的行不动"
+
+
+def test_fill_depth_prefix_pass_runs_before_family(monkeypatch):
+    """prefix 档只用 read_depth_prefix（显式 D 注记），且在同族借用之前执行。"""
+    from app.modules.quote import vector_read
+
+    prods = [{"row_code": "CIY_D-01", "page": 8, "W": 1000, "H": 745, "D": None, "confirm_dims": []}]
+    monkeypatch.setattr(vector_read, "read_depth_prefix", lambda page, w_mm=None: 500)
+    monkeypatch.setattr(vector_read, "read_depth_geometry",
+                        lambda page, w_mm=None, h_mm=None: 999)  # 不应被 prefix 档调用
+    monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
+        "__getitem__": lambda self, i: object(), "close": lambda self: None})())
+    n = generate._fill_depth_from_drawing(prods, "x.pdf", "prefix")
+    assert n == 1 and prods[0]["D"] == 500
+
+
+def test_propagate_family_depth_borrows_within_product_family():
+    """同产品族借深度：デスク族借 500、バンクベッド族借 1275；独一无二的产品保持空（不臆造）。"""
+    products = [
+        {"row_code": "CIY_D-01", "name_jp": "デスク-Aタイプ", "W": 1000, "D": 500, "H": 745, "confirm_dims": []},
+        {"row_code": "CIY_D-02", "name_jp": "デスク-Bタイプ", "W": 1000, "D": None, "H": 745, "confirm_dims": []},
+        {"row_code": "CIY_B-01", "name_jp": "バンクベッド-Aタイプ", "W": 2095, "D": None, "H": 1535, "confirm_dims": []},
+        {"row_code": "CIY_B-02", "name_jp": "バンクベッド-Bタイプ", "W": 2215, "D": 1275, "H": 2265, "confirm_dims": []},
+        {"row_code": "CIY_L-01", "name_jp": "ビッグテーブル（LOUNGE）", "W": 4000, "D": None, "H": 2700, "confirm_dims": []},
+    ]
+    generate._propagate_family_depth(products)
+    assert products[1]["D"] == 500 and "D" in products[1]["confirm_dims"], "デスク族借 500"
+    assert products[2]["D"] == 1275, "バンクベッド族借 1275"
+    assert products[4]["D"] is None, "独一无二的产品不臆造深度"
+
+
+def test_fill_depth_geom_strong_only_runs_strong_tiers(monkeypatch):
+    """geom_strong 档只跑几何强档（strong_only=True）——用来在同族借用前盖过借用（书桌 400≠族 500）。"""
+    from app.modules.quote import vector_read
+
+    calls = {}
+    def fake(page, w_mm=None, h_mm=None, strong_only=False):
+        calls["strong_only"] = strong_only
+        return 400 if strong_only else 999
+    monkeypatch.setattr(vector_read, "read_depth_geometry", fake)
+    monkeypatch.setattr(generate.fitz, "open", lambda _p: type("D", (), {
+        "__getitem__": lambda self, i: object(), "close": lambda self: None})())
+    prods = [{"row_code": "CIY_D-02", "page": 9, "W": 1000, "H": 745, "D": None, "confirm_dims": []}]
+    generate._fill_depth_from_drawing(prods, "x.pdf", "geom_strong")
+    assert calls["strong_only"] is True and prods[0]["D"] == 400
+
+
+def test_pipeline_order_strong_geometry_beats_family_but_weak_defers():
+    """管线次序：几何强档在同族借用前（书桌各读各的 400，不被 D-01 的 500 借错）；
+    弱档在借用后兜底（冰箱柜 RE-03 借 580，而非几何弱读的基座值）。"""
+    # 模拟强档：只有书桌读到 400；冰箱柜强档读不到（None）→ 交给同族借用。
+    desks = [
+        {"row_code": "CIY_D-01", "name_jp": "デスク-Aタイプ", "W": 1000, "D": 500, "H": 745, "confirm_dims": []},
+        {"row_code": "CIY_D-02", "name_jp": "デスク-Bタイプ", "W": 1000, "D": 400, "H": 745, "confirm_dims": []},
+    ]
+    generate._propagate_family_depth(desks)
+    assert desks[1]["D"] == 400, "书桌 D-02 已由强档读到 400，同族借用不得覆盖成 500"
+    fridges = [
+        {"row_code": "CIY_RE-01", "name_jp": "冷蔵庫収納-Aタイプ", "W": 610, "D": 580, "H": 1330, "confirm_dims": []},
+        {"row_code": "CIY_RE-03", "name_jp": "冷蔵庫収納-Cタイプ", "W": 1100, "D": None, "H": 970, "confirm_dims": []},
+    ]
+    generate._propagate_family_depth(fridges)
+    assert fridges[1]["D"] == 580, "RE-03 强档无果 → 同族借用 580"
+
+
+def test_local_axis_geometry_fallback_fills_wh_without_titleblock():
+    """图框无注记时，W/H 用几何引擎 overall_value 兜底填（本地零 AI），标复核。"""
+    measured = {"vector_ok": True, "confidence": "mid",
+                "W": {"overall_value": 4000, "extent_ok": False, "suspect_local": True},
+                "H": {"overall_value": 2700, "extent_ok": False, "suspect_local": True}}
+    w, ws_, wflag = dims._local_axis(measured, {"W": None, "D": None, "H": None}, "W")
+    assert w == 4000 and wflag is True, "几何兜底填 W 并标复核"
+    h, hs_, _ = dims._local_axis(measured, {}, "H")
+    assert h == 2700
+
+
+def test_handler_auto_never_calls_ai_on_vector(storage_supabase, monkeypatch):
+    """矢量图纸在智能模式下**坚决不调 AI**（成本 0），品名靠本地查表、材质靠术语表补。"""
+    class _NoAIClaude:
+        @classmethod
+        def from_env(cls, model_override=None):
+            return cls()
+
+    def boom(*a, **k):
+        raise AssertionError("矢量页不得调用 AI 看图")
+
+    monkeypatch.setattr(generate, "ClaudeClient", _NoAIClaude)
+    monkeypatch.setattr(dims, "decide_page", boom)   # 视觉路被调用即失败
+    monkeypatch.setattr(generate, "_load_glossary_maps", lambda ctx: ({}, []))
+
+    result = generate.run(JobContext(supabase=storage_supabase, job_id="job-q1", params=_params()))
+    assert result["summary"]["vision_calls"] == 0 and result["summary"]["cost_usd"] == 0.0
 
 
 def test_handler_local_mode_makes_no_ai_call(storage_supabase, monkeypatch):

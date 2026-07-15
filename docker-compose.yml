@@ -18,7 +18,21 @@ services:
     # 浏览器（宿主）访问后端/ Supabase 的地址；容器内 next 服务端也用同一套 .env。
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      # bind mount 下 Docker Desktop(Mac/Win) 的文件系统事件常传不进容器，
+      # 开轮询让 next dev 的热更新可靠触发；否则改了代码页面不刷新，又会像“看到旧版”。
+      WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"
+    # 本地开发热更新：挂源码进容器，改代码即时生效，永远不用 --build 重建镜像看新代码。
+    volumes:
+      # 源码目录整挂：本机一改 → 容器内 next dev 立即热更新。
+      - ./:/repo
+      # 用镜像里 npm ci 装好的 node_modules 覆盖 bind mount——宿主的可能为空或是 mac 原生二进制，
+      # 直接挂进 linux 容器会崩。匿名卷首次创建时从镜像同路径初始化，正好保留容器内装好的依赖。
+      - /repo/node_modules
+      - /repo/apps/web/node_modules
+      - /repo/shared/ts/node_modules
+      # .next 构建缓存留容器内，避免宿主/容器互相踩、权限打架。
+      - /repo/apps/web/.next
     depends_on:
       - api

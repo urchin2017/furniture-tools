@@ -3,6 +3,11 @@
 > 本仓库把「已做好的 Claude Skill」组装成一个 Web 工具，给没有 API key 的销售同事用，所有 AI 调用走服务端 key。
 > 完整规划见 plan：`~/.claude/plans/claude-code-ticklish-thunder.md`
 
+## 语言约定
+- 所有面向用户的解释、说明、计划、总结、错误分析，一律用中文书写。
+- 代码、变量名、函数名、命令行命令、Git commit message 保持英文（不要翻译）。
+- 终端/测试工具的原生输出（npm、pytest、git 等）保持原样，但对这些输出的解读要用中文。
+
 ## 架构
 - **前端 `apps/web`**：Next.js(React, App Router)。简单读写（登录、术语表 CRUD）直连 Supabase（anon key + RLS）。
 - **后端 `apps/api`**：FastAPI(Python)。重任务（报价/图纸/唛头处理、调 Claude API、跑 skill 机械脚本）走这里。

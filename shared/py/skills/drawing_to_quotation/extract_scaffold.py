@@ -129,6 +129,99 @@ def find_text_dims(text):
     return out
 
 
+# 标题栏（图框）品番：CIY_B-02 / TV-01 / RE-01 / HB-01 / CIY_M-01 / CIY_L-03 …
+# ——SEKI 等厂把品番放图框「DRAWING NO.」栏、正文 find_codes 抓不到，这里从图框解析。
+TITLE_CODE_RE = re.compile(r'\b([A-Z]{2,4}(?:_[A-Z0-9]{1,3})?-\d{1,3}[A-Z]?)\b')
+_DRAWNO_KEYS = ('DRAWING NO', 'DWG NO', '図番', '図面番号')
+
+
+def parse_title_block(text):
+    """从图框标题栏解析 (品番, 数量)。图框把值与标签拆成相邻行（位置文本被拉平），
+    故在「DRAWING NO.」「QTY」标签的相邻行里就近取值。取不到返回 (None, None)。"""
+    lines = [ln.strip() for ln in norm(text).splitlines()]
+    up = [ln.upper() for ln in lines]
+    code = None
+    for i, u in enumerate(up):
+        if any(k in u for k in _DRAWNO_KEYS):
+            for j in (i - 1, i + 1, i - 2, i + 2):
+                if 0 <= j < len(lines):
+                    m = TITLE_CODE_RE.search(lines[j])
+                    if m:
+                        code = m.group(1)
+                        break
+            if code:
+                break
+    qty = None
+    for i, u in enumerate(up):
+        if u in ('QTY', "Q'TY", 'Q’TY', '数量') or u.startswith('QTY'):
+            for j in (i + 1, i - 1):
+                if 0 <= j < len(lines) and re.fullmatch(r'\d{1,4}', lines[j]):
+                    qty = int(lines[j])
+                    break
+            if qty is not None:
+                break
+    return code, qty
+
+
+_SHEET_RE = re.compile(r'(\d)\s*/\s*(\d)')
+
+
+def parse_sheet_no(text):
+    """解析图框「SHEET NO.」= (k, m)：第 k 张 / 共 m 张。取不到返回 None。"""
+    lines = [ln.strip() for ln in norm(text).splitlines()]
+    up = [ln.upper() for ln in lines]
+    for i, u in enumerate(up):
+        if 'SHEET NO' in u or u in ('SHEET', '図面番号/枚数'):
+            for j in (i + 1, i - 1, i + 2, i - 2):
+                if 0 <= j < len(lines):
+                    m = _SHEET_RE.fullmatch(lines[j])
+                    if m:
+                        return int(m.group(1)), int(m.group(2))
+            break
+    return None
+
+
+def _dedupe_multisheet(products):
+    """同一品番的多页图纸（SHEET k/m, m≥2）是**同一产品**：把续页(k≥2)并入首页、只留一行，
+    避免报价重复计数。仅当同品番存在更早页时才删续页——孤立续页（无首页）保留。
+    不同品番/各自 1/1 的同码变体（数量不同）不受影响。"""
+    by_code = {}
+    for r in products:
+        c = r.get('row_code')
+        if c:
+            by_code.setdefault(c, []).append(r)
+    drop = set()
+    for recs in by_code.values():
+        if len(recs) < 2 or not any((r.get('_sheet') or (0, 0))[1] >= 2 for r in recs):
+            continue
+        primary = min(recs, key=lambda r: (r.get('_sheet') or (99, 99))[0])
+        for r in recs:
+            s = r.get('_sheet')
+            if r is not primary and s and s[0] >= 2:  # 续页 → 并入首页后删除
+                for k in 'WDH':
+                    if (primary.get('text_dims') or {}).get(k) is None and (r.get('text_dims') or {}).get(k):
+                        primary['text_dims'][k] = r['text_dims'][k]
+                drop.add(id(r))
+    return [r for r in products if id(r) not in drop]
+
+
+def _propagate_same_code_dims(products):
+    """同一品番跨页（如 CIY_B-02 图纸 1/2、2/2）：某页缺 text_dims，借同品番另一页已量到的。"""
+    by_code = {}
+    for r in products:
+        c = r.get('row_code')
+        if c:
+            by_code.setdefault(c, []).append(r)
+    for recs in by_code.values():
+        donor = next((r for r in recs
+                      if any((r.get('text_dims') or {}).get(k) for k in 'WDH')), None)
+        if not donor:
+            continue
+        for r in recs:
+            if not any((r.get('text_dims') or {}).get(k) for k in 'WDH'):
+                r['text_dims'] = dict(donor['text_dims'])
+
+
 def guess_names_mats(text):
     text = norm(text)
     name = ''
@@ -155,12 +248,18 @@ def render_page(page, out_png, dpi):
     page.get_pixmap(dpi=dpi).save(out_png)
 
 
-def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=''):
+def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project='',
+                   render_images=True):
     """核心入口（供后端 import；main() 是它的 CLI 皮）。
 
     把骨架写到 out_json 并返回 payload dict。payload 比原版多带一个
     'raster_pages'（1-based 页码列表）供上层强制走看图协议——fill_quote
     只读 'project'/'products'，多这个键无影响。
+
+    render_images=False：**不渲染整页图**（仍在记录里保留 page_image 路径字段）。
+    Web 生成管线里看图路会自己按视觉 DPI 重渲（dims.render_vision_images 写到独立目录），
+    这里的整页图从不被读取——关掉可省掉逐页一张 150dpi 大图的白渲，矢量/位图单都提速。
+    skill 的 CLI main() 仍用默认 True（它会读 page_image）。
     """
     img_dir = img_dir or os.path.join(os.path.dirname(os.path.abspath(out_json)) or '.', 'pages')
     os.makedirs(img_dir, exist_ok=True)
@@ -175,12 +274,21 @@ def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=
         page = doc[pi]
         text = page.get_text()
         codes = find_codes(text)
+        tb_code, tb_qty = parse_title_block(text)   # 图框标题栏：品番/数量（SEKI 等放图框）
+        sheet_no = parse_sheet_no(text)              # 图框 SHEET NO. = (k, m)，多页产品去重用
+        if not codes and tb_code:                    # 正文无品番 → 用图框品番（不再是空占位）
+            codes = [tb_code]
         tdims = find_text_dims(text)
         qhints = find_qty_hints(text, codes)
+        if tb_qty is not None:                        # 图框数量兜底：给还没数量候选的品番
+            for c in codes:
+                if c:
+                    qhints.setdefault(c, tb_qty)
         name = guess_names_mats(text)
 
         img = os.path.join(img_dir, f'full_page_{pageno:02d}.png')
-        render_page(page, img, dpi)
+        if render_images:
+            render_page(page, img, dpi)
 
         try:
             measured = measure_page(page)
@@ -215,8 +323,13 @@ def build_scaffold(pdf, out_json, img_dir=None, dpi=150, skip_pages=(), project=
             }
             if any(v is not None for v in tdims.values()):
                 rec['text_dims_note'] = TEXT_DIMS_NOTE
+            rec['_sheet'] = sheet_no
             products.append(rec)
 
+    products = _dedupe_multisheet(products)   # 多页同品番（1/2·2/2）合成一行，去重复计数
+    _propagate_same_code_dims(products)        # 同品番跨页补 text_dims
+    for r in products:
+        r.pop('_sheet', None)                  # 内部字段不落 json
     payload = {'project': project, 'products': products, 'raster_pages': raster_pages}
     with open(out_json, 'w', encoding='utf-8') as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)

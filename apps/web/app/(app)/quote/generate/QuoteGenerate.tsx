@@ -7,10 +7,18 @@ import Hint from "@/components/Hint";
 const supabase = createClient();
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+// 看图用的模型由系统自动选定（不再让用户挑）：Sonnet 5 读尺寸线准、速度/价格适中，
+// 是位图看图的默认之选。纯本地模式下后端忽略此项。
+const AUTO_VISION_MODEL = "claude-sonnet-5";
+// 单页看图的粗略计费提示（美元/页），只用于花钱确认闸的文案；真实成本按 token 在结果里给出。
+const EST_USD_PER_VISION_PAGE = 0.15;
+
 /** 千分位格式化 token 数；缺失/未知显示 —。 */
 function fmtTok(n?: number): string {
   return typeof n === "number" ? n.toLocaleString("en-US") : "—";
 }
+
+type VisionMode = "local" | "auto" | "always";
 
 /** fetch + 网络错误重试（本机网络抖动）；连不上时给出可操作的中文报错。 */
 async function fetchRetry(url: string, init: RequestInit, tries = 3): Promise<Response> {
@@ -62,11 +70,13 @@ type JobResult = {
     cache_read_input_tokens?: number;
     cache_creation_input_tokens?: number;
     vision_calls?: number;
-    text_calls?: number;
     local_calls?: number;
+    bitmap_pages?: number[];
+    vector_pages?: number[];
     vision_mode?: string;
     per_page?: {
       page: number;
+      kind?: string;
       path: string;
       input_tokens: number;
       output_tokens: number;
@@ -84,7 +94,8 @@ type Job = {
   error: string | null;
 };
 
-type Phase = "idle" | "uploading" | "running" | "done" | "error" | "cancelled";
+// idle=待上传；confirm=AI 模式的花钱确认闸；uploading=上传中；running=生成中。
+type Phase = "idle" | "confirm" | "uploading" | "running" | "done" | "error" | "cancelled";
 
 export default function QuoteGenerate() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -94,8 +105,7 @@ export default function QuoteGenerate() {
   const [startRow, setStartRow] = useState(18);
   const [lastRow, setLastRow] = useState(50);
   const [requireVisual, setRequireVisual] = useState(false);
-  const [visionMode, setVisionMode] = useState<"local" | "auto" | "always">("auto");
-  const [model, setModel] = useState("claude-sonnet-5");
+  const [visionMode, setVisionMode] = useState<VisionMode>("auto");
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
@@ -113,6 +123,22 @@ export default function QuoteGenerate() {
       pollRef.current = null;
     }
   }
+
+  /** 换文件/改参数 → 回到初始可重来状态。 */
+  function resetToIdle() {
+    stopPoll();
+    setPhase("idle");
+    setResult(null);
+    setLinks({});
+    setJobId(null);
+    setProgress(0);
+    setErr(null);
+  }
+
+  const skipList = skipPages
+    .split(/[,，\s]+/)
+    .filter((s) => /^\d+$/.test(s))
+    .map(Number);
 
   async function onCancel() {
     if (!jobId || cancelling) return;
@@ -191,7 +217,8 @@ export default function QuoteGenerate() {
     }, 2500);
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  // 点「自动生成」：本地校验后——AI 模式先弹一次花钱确认闸；纯本地（零 AI）直接开跑。
+  function onAutoGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!pdfFile || !templateFile) {
       setErr("请同时选择图纸 PDF 和报价模板 Excel");
@@ -209,10 +236,22 @@ export default function QuoteGenerate() {
       }
     }
     setErr(null);
+    if (visionMode === "local") {
+      // 纯本地：零 AI、零成本，无需确认，直接上传并生成。
+      startGenerate();
+    } else {
+      // 智能 / 全部看图：位图页会调 AI 产生费用 → 先过一次确认闸。
+      setPhase("confirm");
+    }
+  }
+
+  // 上传两个文件（走后端中转，稳）→ 建生成任务 → 轮询进度。整份 PDF 只下载一次（在生成任务里）。
+  async function startGenerate() {
+    setErr(null);
     setResult(null);
     setLinks({});
-    setPhase("uploading");
     setProgress(0);
+    setPhase("uploading");
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -235,23 +274,19 @@ export default function QuoteGenerate() {
         }
         return (await res.json()).path as string;
       };
-      const pdfKey = await uploadOne(pdfFile);
-      const tplKey = await uploadOne(templateFile);
+      const pKey = await uploadOne(pdfFile!);
+      const tKey = await uploadOne(templateFile!);
 
       const params = {
-        pdf_path: pdfKey,
-        template_path: tplKey,
+        pdf_path: pKey,
+        template_path: tKey,
         project: project.trim(),
-        skip_pages: skipPages
-          .split(/[,，\s]+/)
-          .filter((s) => /^\d+$/.test(s))
-          .map(Number),
+        skip_pages: skipList,
         start_row: startRow,
         last_row: lastRow,
         require_visual: requireVisual,
-        // AI 模式：local=纯本地零 AI / auto=省钱分流（默认）/ always=逐页视觉最准。
         vision_mode: visionMode,
-        model,  // 纯本地模式下后端忽略此项
+        model: AUTO_VISION_MODEL, // 系统自动选模型；纯本地模式下后端忽略此项
       };
       const res = await fetchRetry(`${API}/api/jobs`, {
         method: "POST",
@@ -281,10 +316,10 @@ export default function QuoteGenerate() {
     <div className="space-y-4 max-w-4xl">
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-semibold text-ink">报价单生成</h1>
-        <Hint text="上传 PDF 技术图纸 + Excel 报价模板 → 自动提取产品、AI 看图定「外形/全体寸法」、填表、渲染验证。尺寸拿不准的行会标 ⚠ 淡黄高亮，务必人工复核后再发客户。" />
+        <Hint text="一键「自动生成」：系统自动逐页判断位图/矢量并选定模型——矢量页用本地几何零 AI 读尺寸；位图页交 AI 看图（只读图面尺寸线，不信文字注记）。AI 模式选「智能」时会先弹一次花钱确认。尺寸拿不准的行标 ⚠ 淡黄高亮，务必人工复核后再发客户。" />
       </div>
 
-      <form onSubmit={onSubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
+      <form onSubmit={onAutoGenerate} className="bg-surface border border-border rounded-xl p-6 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label
             className={`flex w-full items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm ${
@@ -299,7 +334,10 @@ export default function QuoteGenerate() {
               type="file"
               accept=".pdf,application/pdf"
               disabled={busy}
-              onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setPdfFile(e.target.files?.[0] ?? null);
+                if (phase !== "idle") resetToIdle();
+              }}
               className="hidden"
             />
           </label>
@@ -316,7 +354,10 @@ export default function QuoteGenerate() {
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               disabled={busy}
-              onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setTemplateFile(e.target.files?.[0] ?? null);
+                if (phase !== "idle") resetToIdle();
+              }}
               className="hidden"
             />
           </label>
@@ -337,13 +378,16 @@ export default function QuoteGenerate() {
           </label>
           <label className="block text-sm">
             <span className="inline-flex items-center gap-1 text-ink">
-              跳过页 <Hint text="封面等无品番的页码，逗号分隔（默认 1）" />
+              跳过页 <Hint text="封面等无品番的页码，逗号分隔（默认 1）。" />
             </span>
             <input
               type="text"
               value={skipPages}
               disabled={busy}
-              onChange={(e) => setSkipPages(e.target.value)}
+              onChange={(e) => {
+                setSkipPages(e.target.value);
+                if (phase === "confirm") resetToIdle();
+              }}
               placeholder="1"
               className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-ink"
             />
@@ -384,51 +428,83 @@ export default function QuoteGenerate() {
         <label className="inline-flex items-center gap-2 text-sm text-ink">
           <span className="inline-flex items-center gap-1">
             AI 模式
-            <Hint text="纯本地（零 AI）：完全不调 Anthropic、零成本——几何量 W/H + 文字层提 D/品名/材质 + 术语表翻译，拿不准的标 ⚠ 待人工核对。只适合能提取文字的矢量 PDF。 省钱（默认）：矢量页走廉价文字调用，扫描/拿不准的页才用视觉，成本约低 8 倍。 高精度：每页都让 AI 看图核对，最准最贵最慢，关键报价用。" />
+            <Hint text="智能（推荐）：矢量页用本地几何零 AI 读尺寸、位图页才用 AI 看图——能不用 AI 就不用，模型由系统自动选。 纯本地（零 AI）：所有页都本地读，完全不调 AI、零成本，拿不准的标 ⚠。 全部看图：每页都让 AI 看图，最准最贵最慢，关键报价用。" />
           </span>
           <select
             value={visionMode}
             disabled={busy}
-            onChange={(e) => setVisionMode(e.target.value as "local" | "auto" | "always")}
+            onChange={(e) => {
+              setVisionMode(e.target.value as VisionMode);
+              if (phase === "confirm") resetToIdle();
+            }}
             className="rounded-lg border border-border bg-bg px-2 py-1.5 text-ink"
           >
+            <option value="auto">智能（推荐 · 矢量本地 / 位图看图）</option>
             <option value="local">纯本地（零 AI · 免费）</option>
-            <option value="auto">省钱（推荐 · 自动分流）</option>
-            <option value="always">高精度（逐页看图）</option>
+            <option value="always">全部看图（逐页 AI · 最准最贵）</option>
           </select>
-          <span className="inline-flex items-center gap-1 ml-2">
-            AI 模型
-            <Hint text="用到 AI 时选哪个模型（纯本地模式不调 AI，此项无效）。 Sonnet 5（推荐）：读尺寸准、价格适中。 Haiku 4.5：约 1/3 价、更快，但更容易读错尺寸——省钱首选是「纯本地/省钱」模式而非换 Haiku。 Opus 4.8：最准最贵，关键报价用。" />
-          </span>
-          <select
-            value={model}
-            disabled={busy || visionMode === "local"}
-            onChange={(e) => setModel(e.target.value)}
-            className="rounded-lg border border-border bg-bg px-2 py-1.5 text-ink disabled:opacity-50"
-          >
-            <option value="claude-sonnet-5">Sonnet 5（推荐）</option>
-            <option value="claude-haiku-4-5-20251001">Haiku 4.5（更便宜）</option>
-            <option value="claude-opus-4-8">Opus 4.8（最准最贵）</option>
-          </select>
+          <span className="text-xs text-muted ml-1">模型由系统自动选定</span>
         </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-lg bg-brand text-brand-ink px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          {phase === "uploading" ? "上传中…" : phase === "running" ? "生成中…" : "开始生成"}
-        </button>
+        {phase !== "confirm" && (
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded-lg bg-brand text-brand-ink px-4 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {phase === "uploading" ? "上传中…" : "自动生成"}
+          </button>
+        )}
       </form>
 
-      {busy && (
+      {/* AI 模式的花钱确认闸（纯本地模式不会走到这里） */}
+      {phase === "confirm" && (
+        <div className="bg-surface border border-border rounded-xl p-6 space-y-3">
+          <h2 className="font-medium text-ink">确认生成</h2>
+          <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+            <div>
+              当前为
+              <b>{visionMode === "always" ? "「全部看图」" : "「智能」"}</b>
+              模式：
+              {visionMode === "always" ? (
+                <>每一页都会调用 AI 看图</>
+              ) : (
+                <>其中的<b>位图页</b>会调用 AI 看图（矢量页仍本地零 AI、免费）</>
+              )}
+              ，会产生 AI 费用，按每页约 <b>US${EST_USD_PER_VISION_PAGE.toFixed(2)}</b> 计。
+            </div>
+            <div className="text-xs text-amber-700">
+              系统会在生成时自动判断哪些页需看图、并自动选用 Sonnet 5 模型。确切页数与费用在生成完成后逐页给出。
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={startGenerate}
+              className="rounded-lg bg-brand text-brand-ink px-4 py-2 text-sm font-medium"
+            >
+              确认生成
+            </button>
+            <button
+              type="button"
+              onClick={resetToIdle}
+              className="rounded-lg border border-border px-3 py-2 text-sm text-ink hover:bg-bg"
+            >
+              取消
+            </button>
+            <span className="text-xs text-muted">想零成本？把上方「AI 模式」切到「纯本地」。</span>
+          </div>
+        </div>
+      )}
+
+      {phase === "running" && (
         <div className="bg-surface border border-border rounded-xl p-6 space-y-3">
           <div className="text-sm text-ink">
-            {phase === "uploading" ? "正在上传文件…" : `正在生成（骨架 → AI 看图定尺寸 → 填表 → 渲染验证）… ${progress}%`}
+            正在生成（判断分流 → 定尺寸 → 填表 → 渲染验证）… {progress}%
           </div>
           <div className="h-2 rounded bg-bg overflow-hidden">
             <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
           </div>
-          {phase === "running" && jobId && (
+          {jobId && (
             <button
               type="button"
               onClick={onCancel}
@@ -443,7 +519,7 @@ export default function QuoteGenerate() {
 
       {phase === "cancelled" && (
         <div className="border border-border bg-bg text-muted rounded-xl p-4 text-sm">
-          已取消生成。可重新选择参数后再次「开始生成」。（正在进行中的那一页 AI 调用会自然结束，不再继续后续页。）
+          已取消生成。可重新选择参数后再次「自动生成」。（正在进行中的那一页 AI 调用会自然结束，不再继续后续页。）
         </div>
       )}
 
@@ -472,13 +548,12 @@ export default function QuoteGenerate() {
               </div>
               <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-muted">
                 <dt>模型</dt>
-                <dd className="text-ink">{result.summary.model || "—"}</dd>
+                <dd className="text-ink">{result.summary.model || "—（本次未用 AI）"}</dd>
                 {result.summary.vision_calls != null && (
                   <>
                     <dt>分流</dt>
                     <dd className="text-ink">
-                      视觉 {result.summary.vision_calls} 页 / 文字 {result.summary.text_calls ?? 0} 页
-                      {(result.summary.local_calls ?? 0) > 0 && ` / 本地 ${result.summary.local_calls} 页（零 AI）`}
+                      AI 看图 {result.summary.vision_calls} 页 / 本地 {result.summary.local_calls ?? 0} 页（零 AI）
                     </dd>
                   </>
                 )}
@@ -518,7 +593,7 @@ export default function QuoteGenerate() {
                         {result.summary.per_page.map((p) => (
                           <tr key={p.page} className="text-ink">
                             <td className="pr-3">{p.page}</td>
-                            <td className="pr-3">{p.path === "vision" ? "视觉" : p.path === "local" ? "本地" : "文字"}</td>
+                            <td className="pr-3">{p.path === "vision" ? "AI 看图" : "本地"}</td>
                             <td className="pr-3">{fmtTok(p.input_tokens)}</td>
                             <td className="pr-3">{fmtTok(p.output_tokens)}</td>
                             <td>US${p.cost_usd}</td>
@@ -531,7 +606,7 @@ export default function QuoteGenerate() {
               )}
               {result.summary.raster_pages.length > 0 && (
                 <div className="text-muted mt-2">
-                  光栅图纸页：{result.summary.raster_pages.join(", ")}（几何测量不可用，已走看图协议）
+                  位图图纸页：{result.summary.raster_pages.join(", ")}（几何测量不可用，已走 AI 看图）
                 </div>
               )}
             </div>
